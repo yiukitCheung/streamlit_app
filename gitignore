@@ -1,0 +1,3 @@
+.streamlit/secrets.toml
+config/mongo.yaml
+__pycache__/
