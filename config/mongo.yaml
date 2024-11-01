@@ -1,0 +1,11 @@
+mongodb:
+  url: "mongodb+srv://myadmin:wai6d09wsS@datawarehouse.hvjdi.mongodb.net/?retryWrites=true&w=majority&appName=DataWarehouse"
+  db_name: "data_warehouse"
+  warehouse_interval: "1d"
+  streaming_interval: ["5m","30m"]
+  process_collection_name: "processed_data"
+  train_data_repository_collection_name: "trainable_data_repository"
+  alert_collection_name: 
+    long_term: "long_term_alert"
+    live: "live_streaming_data"
+    batch: "batch_streaming_data"
