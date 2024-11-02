@@ -1,9 +1,7 @@
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import pandas as pd
 from pymongo import MongoClient
-import sys, os
 import yfinance as yf
 from datetime import datetime
 
@@ -16,6 +14,7 @@ WAREHOUSE_INTERVAL = st.secrets.warehouse_interval
 WAREHOUSE_INTERVAL_COLLECTION = '1d_data'
 PROCESSED_COLLECTION = st.secrets.processed_collection_name
 ALERT_COLLECTION = st.secrets.alert_collection_name
+
 
 @st.cache_data
 def get_most_current_trading_date() -> str:

@@ -1,4 +1,3 @@
 /.streamlit
 /__pycache__
 config/mongo.yaml
-trading_strategy.py
