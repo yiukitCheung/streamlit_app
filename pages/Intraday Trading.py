@@ -1,10 +1,8 @@
-
 import pandas as pd
 import pymongo
 import plotly.graph_objects as go
 import streamlit as st
 import time
-from datetime import datetime
 
 # MongoDB Configuration
 DB_NAME = st.secrets['db_name']
@@ -15,9 +13,11 @@ BATCH_ALERT_COLLECTION = st.secrets.batch
 DESIRED_STREAMING_INTERVAL = st.secrets.streaming_interval
 WINDOW_SIZE = st.secrets.window_size
 
+
 def initialize_mongo_client(db_name=DB_NAME):
     client = pymongo.MongoClient(**st.secrets["mongo"])
     return client[db_name]
+
 
 @st.cache_data
 def get_current_date():
@@ -30,19 +30,22 @@ def get_current_date():
         current_date -= pd.Timedelta(days=1)
     return current_date.replace(hour=7, minute=30) - pd.Timedelta(days=WINDOW_SIZE)
 
+
 def fetch_data(db, collection_name, symbol):
     query = {"symbol": symbol}
     return db[collection_name].find(query)
+
 
 def fetch_alerts(db, collection_name, symbol, interval, date, alert_type=None):
     query = {"symbol": symbol, "interval": interval, "datetime": {"$gte": date}}
     if alert_type:
         query["alert_type"] = {"$in": alert_type}
-    
+
     # Fetch the latest document by sorting 'datetime' in descending order
     return db[collection_name].find(query, sort=[("datetime", -1)])
 
-def plot_candlestick_chart(filtered_df,filtered_live_alerts, filtered_batch_alerts, stock_selector):
+
+def plot_candlestick_chart(filtered_df, filtered_live_alerts, filtered_batch_alerts, stock_selector):
     # Step 1: Find the most frequent support and resistance levels
     if 'support' in filtered_batch_alerts.columns and 'resistance' in filtered_batch_alerts.columns:
         # Calculate the most frequent support and resistance levels
@@ -60,10 +63,10 @@ def plot_candlestick_chart(filtered_df,filtered_live_alerts, filtered_batch_aler
 
     # Step 1: Add Candlestick to fig
     candlestick_chart = go.Figure(data=[go.Candlestick(
-        x=filtered_df['datetime'], 
-        open=filtered_df['open'], 
-        high=filtered_df['high'], 
-        low=filtered_df['low'], 
+        x=filtered_df['datetime'],
+        open=filtered_df['open'],
+        high=filtered_df['high'],
+        low=filtered_df['low'],
         close=filtered_df['close']
     )])
 
@@ -84,7 +87,8 @@ def plot_candlestick_chart(filtered_df,filtered_live_alerts, filtered_batch_aler
         )
     # Step 3: Add the live candle pattern alerts
     for _, alert in filtered_live_alerts.iterrows():
-        color = 'green' if alert['alert_type'] in ['bullish_engulfer', 'bullish_382'] else 'red' if alert['alert_type'] == 'bearish_engulfer' else 'black'
+        color = 'green' if alert['alert_type'] in ['bullish_engulfer', 'bullish_382'] else 'red' if alert[
+                                                                                                        'alert_type'] == 'bearish_engulfer' else 'black'
         hover_text = f"Alert Type: {alert['alert_type']}<br>Date: {alert['datetime'].strftime('%Y-%m-%d %H:%M:%S')}"
         candlestick_chart.add_annotation(
             x=alert['datetime'],
@@ -124,8 +128,9 @@ def plot_candlestick_chart(filtered_df,filtered_live_alerts, filtered_batch_aler
         ),
         width=1200,
         height=700
-        )
+    )
     return candlestick_chart
+
 
 def plot_support_resistance_histogram(filtered_batch_alerts):
     # Clear the previous figure
@@ -179,43 +184,42 @@ def plot_support_resistance_histogram(filtered_batch_alerts):
     else:
         st.warning("No support/resistance data available for the selected interval and symbol.")
 
+
 def plot_live_page(db, stock_selector, interval):
     # Prepare data for the selected stock and interval
     selected_topic = f"{interval}_stock_datastream"
     filtered_query = fetch_data(db, selected_topic, stock_selector)
-    filtered_live_alerts_query = fetch_alerts(db, LIVE_ALERT_COLLECTION, stock_selector, interval, date=get_current_date(),
-                                            alert_type=["bullish_engulfer", "bearish_engulfer", "bullish_382"])
-    filtered_batch_alerts_query = fetch_alerts(db, BATCH_ALERT_COLLECTION, stock_selector, interval,date=get_current_date())
-    
+    filtered_live_alerts_query = fetch_alerts(db, LIVE_ALERT_COLLECTION, stock_selector, interval,
+                                              date=get_current_date(),
+                                              alert_type=["bullish_engulfer", "bearish_engulfer", "bullish_382"])
+    filtered_batch_alerts_query = fetch_alerts(db, BATCH_ALERT_COLLECTION, stock_selector, interval,
+                                               date=get_current_date())
+
     # Convert the query results to a DataFrame
     filtered_df = pd.DataFrame(list(filtered_query))
     filtered_live_alerts = pd.DataFrame(list(filtered_live_alerts_query))
     filtered_batch_alerts = pd.DataFrame(list(filtered_batch_alerts_query))
     # Find the most frequent support
-
     # Convert the 'datetime' field to datetime
-    if not filtered_df.empty and not filtered_live_alerts.empty:
+    if not filtered_df.empty:
         # Ensure consistency in the datetime format
         filtered_df['datetime'] = pd.to_datetime(filtered_df['datetime'])
+    if not filtered_live_alerts.empty:
         filtered_live_alerts['datetime'] = pd.to_datetime(filtered_live_alerts['datetime'])
-        
-    else:
-        st.warning("No data available for the selected interval and symbol.")
-        return
+
     # Plot the Chart
     candlestick_chart = plot_candlestick_chart(filtered_df, filtered_live_alerts, filtered_batch_alerts, stock_selector)
     # Display the chart
-    st.plotly_chart(candlestick_chart, use_container_width=True)
-    
+    st.plotly_chart(candlestick_chart, use_container_width=True, key=f"chart_{time.time()}")
     # Display the latest alerts
     if not filtered_live_alerts.empty:
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            
+
             only_time = filtered_live_alerts['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
             only_time = only_time.head(1).values[0]
-                
+
             st.markdown(f"""
             <div style="
                 text-align: center; 
@@ -230,10 +234,10 @@ def plot_live_page(db, stock_selector, interval):
             {only_time}
             </div>
             """, unsafe_allow_html=True)
-            
-        with col2: 
+
+        with col2:
             alert_type = filtered_live_alerts['alert_type'].values[0]
-            
+
             # Determine the color and message based on the alert type
             if alert_type == 'bullish_engulfer' or alert_type == 'bullish_382':
                 alert_message = f"{alert_type.replace('_', ' ').capitalize()} &#x1F7E2;"  # Green Circle Emoji
@@ -255,10 +259,10 @@ def plot_live_page(db, stock_selector, interval):
             {alert_message}
             </div>
             """, unsafe_allow_html=True)
-    else:      
+    else:
         col1, col2 = st.columns(2)
         with col1:
-                    st.markdown(f"""
+            st.markdown(f"""
             <div style="
                 text-align: center; 
                 font-size: 36px; 
@@ -272,8 +276,8 @@ def plot_live_page(db, stock_selector, interval):
             No Alert Time Available
             </div>
             """, unsafe_allow_html=True)
-            
-        with col2: 
+
+        with col2:
             st.markdown(f"""
             <div style="
                 text-align: center; 
@@ -288,10 +292,10 @@ def plot_live_page(db, stock_selector, interval):
             No Alert Yet
             </div>
             """, unsafe_allow_html=True)
-            
+
     # Display the support/resistance histogram
     plot_support_resistance_histogram(filtered_batch_alerts)
-    
+
 
 if __name__ == "__main__":
     # Set page config
