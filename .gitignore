@@ -1,3 +1,4 @@
 /.streamlit
 /__pycache__
 config/mongo.yaml
+.env

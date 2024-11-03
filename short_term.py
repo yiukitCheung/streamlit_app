@@ -180,7 +180,7 @@ def plot_support_resistance_histogram(filtered_batch_alerts):
                 title='Strength'
             )
         )
-        st.plotly_chart(histogram_fig, use_container_width=True, showlegend=False)
+        st.plotly_chart(histogram_fig, use_container_width=True, showlegend=False, key=f"chart_{time.time()}")
     else:
         st.warning("No support/resistance data available for the selected interval and symbol.")
 
@@ -297,9 +297,7 @@ def plot_live_page(db, stock_selector, interval):
     plot_support_resistance_histogram(filtered_batch_alerts)
 
 
-if __name__ == "__main__":
-    # Set page config
-    st.set_page_config(layout="wide")
+def display_live_data():
     # Initialize MongoDB client
     db = initialize_mongo_client()
     # Get the list of stocks

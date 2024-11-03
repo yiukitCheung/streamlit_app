@@ -130,12 +130,6 @@ def display_alerts(alert_df):
     
 def static_analysis_page(processed_col, alert_col):
     # Set the page title and layout
-    st.set_page_config(
-        page_title="Long Term Alert Dashboard",
-        page_icon=":chart_with_upwards_trend:",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
     st.markdown("<h1 style='text-align: center;'>Long Term Alert Dashboard</h1>", unsafe_allow_html=True)
     
     # Add a sidebar
@@ -169,8 +163,8 @@ def static_analysis_page(processed_col, alert_col):
     with col2:
         # Display the alerts
         display_alerts(alert_df)
-    
-if __name__ == "__main__":
+
+def long_term_dashboard():
     # Connect to MongoDB and fetch the processed collection
     processed_collection = connect_to_mongo()[PROCESSED_COLLECTION_NAME]
     alert_collection = connect_to_mongo()[ALERT_COLLECTION_NAME]

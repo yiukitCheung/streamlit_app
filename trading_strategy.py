@@ -121,20 +121,14 @@ class DailyTradingStrategy:
                     tracked_profit_loss = self.track_profit_loss(trade_type, tracked_alert_stock, sell=False)
                     tracked_profit_pct = (tracked_profit_loss - self.aggressive_capital) / self.aggressive_capital
 
-                    print(
-                        f"{tracked_processed_stock['symbol'].iloc[0]}| {tracked_processed_stock['date'].iloc[0]}: current profit: {tracked_profit_loss} | current profit rate: {tracked_profit_pct}")
-
                     # Update the peak profit if the profit is increasing
                     if tracked_profit_loss > self.peak_profit:
                         self.peak_profit = tracked_profit_loss
                         self.peak_profit_pct = tracked_profit_pct
-                        print(
-                            f"New peak profit updated: {tracked_processed_stock['symbol'].iloc[0]} earns {self.peak_profit}")
 
                     # Sell if the profit has declined by 50% from the peak profit
                     if self.peak_profit_pct - tracked_profit_pct >= self.peak_profit_pct * 0.5:
-                        print(
-                            f"{stock} Profit declined by 50% from the peak. Initiating sell.| Peak profit rate: {self.peak_profit_pct} vs. Current profit rate: {tracked_profit_pct}")
+
                         self.track_profit_loss(trade_type, tracked_alert_stock, sell=True)
                         self.dynamic_protection = False  # Reset dynamic protection after selling
                         self.protected = True
@@ -150,7 +144,7 @@ class DailyTradingStrategy:
                 else:
                     return
 
-                    # ==================== Buying Logic =========================== #
+        # ==================== Buying Logic =========================== #
         # If there is no ongoing trade for the day                      #
         # Check if there is a stock candidate for the day               #
         # ============================================================= #
