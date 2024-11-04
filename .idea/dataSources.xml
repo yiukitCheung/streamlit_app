@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql:///</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="streamlit_database@condvest.cxwqw0y2cfuy.ca-central-1.rds.amazonaws.com" uuid="7a8347fc-2b88-47c6-a17a-3fb52ddd1c37">
+      <driver-ref>postgresql.aws_wrapper</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>software.amazon.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:aws-wrapper:postgresql://condvest.cxwqw0y2cfuy.ca-central-1.rds.amazonaws.com/streamlit_database</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

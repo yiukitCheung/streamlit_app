@@ -108,7 +108,7 @@ def main():
 
                     /* Define the scrolling animation */
                     @keyframes scroll {
-                        0% { transform: translateX(5%); } /* Start closer */
+                        0% { transform: translateX(25%); } /* Start closer */
                         100% { transform: translateX(-100%); }
                     }
                     </style>
@@ -127,7 +127,7 @@ def main():
                     f"""
                     <div class="marquee-container">
                         <span class="marquee">
-                            CondVest Alert: {scrolling_text}
+                            CondVest 2024 Long Term Opportunity Alert: {scrolling_text}
                         </span>
                     </div>
                     """,

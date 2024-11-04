@@ -15,6 +15,7 @@ dbname = st.secrets["db_name_postgres"]
 user = st.secrets["user"]
 host = st.secrets['host']
 port = st.secrets['port']
+key = st.secrets['password']
 
 account_sid = os.getenv('ACC_SID')
 auth_token = os.getenv('AUTH_TOKEN')
@@ -25,7 +26,7 @@ def hash_password(password):
 
 def init_postgres():
     try:
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port)
+        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
         cursor = conn.cursor()
 
         # Check if the users table exists
