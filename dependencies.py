@@ -73,7 +73,7 @@ def init_postgres():
 
 
 def sign_up_process():
-    twil_phone_number = st.secrets('PHONE_NUMBER')
+    twil_phone_number = st.secrets['PHONE_NUMBER']
     st.subheader('Sign Up')
 
     with st.form(key='signup_form', clear_on_submit=True):
