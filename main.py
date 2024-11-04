@@ -1,10 +1,12 @@
 import streamlit as st
+from pymongo import MongoClient
 from dependencies import init_postgres, verify_user, sign_up_process
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
+import random
 # Ensure the correct path to the 'data' directory
-from trading_strategy import DailyTradingStrategy, PickStock
+from trading_strategy import DailyTradingStrategy
 
 # Database connection details
 dbname = st.secrets["db_name_postgres"]
@@ -13,10 +15,19 @@ host = st.secrets['host']
 port = st.secrets['port']
 
 # MongoDB Config
-DB_NAME = st.secrets['db_name']
+URL = st.secrets['mongo'].host
+DB_NAME = st.secrets.db_name
 WAREHOUSE_INTERVAL = st.secrets.warehouse_interval
 PROCESSED_COLLECTION = st.secrets.processed_collection_name
 ALERT_COLLECTION = st.secrets.alert_collection_name
+SANDBOX_COLLECTION = st.secrets.alert_sandbox_name
+
+# Fetch Sandbox testing results
+def fetch_sandbox_records():
+    client = MongoClient(URL)
+    db = client[DB_NAME]
+    records = list(db[SANDBOX_COLLECTION].find({}, {'_id':0}))
+    return records
 
 # Initialize session state
 if 'current_page' not in st.session_state:
@@ -53,6 +64,7 @@ def logout():
 def main():
     st.set_page_config(layout="wide")
     init_postgres()
+    sand_box_results = fetch_sandbox_records()
 
     # Sidebar navigation buttons
     if st.session_state.get('logged_in'):
@@ -71,17 +83,16 @@ def main():
                 login()
                 st.button("Sign Up", on_click=lambda: st.session_state.update(current_page="Sign Up"))
                 # Display the marquee text
-
                 # CSS for scrolling marquee effect
                 st.markdown("""
                     <style>
-                    /* Container to define the scrolling area */
+                    /* Container for scrolling area */
                     .marquee-container {
                         overflow: hidden;
                         white-space: nowrap;
                         background-color: #f0f8ff;
                         padding: 10px;
-                        border-radius: 5px;
+                        border-radius: 30px;
                         width: 100%;
                         box-sizing: border-box;
                     }
@@ -89,28 +100,39 @@ def main():
                     /* Text styling and animation */
                     .marquee {
                         display: inline-block;
-                        padding-left: 100%; /* Start outside the view */
+                        padding-left: 1%; /* Start outside view */
                         font-size: 18px;
                         font-weight: bold;
-                        color: #2E8B57;
-                        animation: scroll 15s linear infinite;
+                        animation: scroll 70s linear infinite; 
                     }
 
                     /* Define the scrolling animation */
                     @keyframes scroll {
-                        0% { transform: translateX(0); }
+                        0% { transform: translateX(5%); } /* Start closer */
                         100% { transform: translateX(-100%); }
                     }
                     </style>
                 """, unsafe_allow_html=True)
 
-                # Display the marquee with a container and scrolling text
-                st.markdown("""
+                # Create scrolling text with conditional colors for profit/loss
+                scrolling_text = " | ".join(
+                    f"<span style='color: {'#4CAF50' if item['final_profit_loss_pct'] > 0 else '#FF5733'}'>"
+                    f"🚀 {item['symbol']}: Entry {item['entry_date'].strftime('%Y-%m-%d')} | Exit {item['exit_date'].strftime('%Y-%m-%d')} | "
+                    f"Profit/Loss: {item['final_profit_loss_pct']:.2f}%"
+                    f"</span>"
+                    for item in sand_box_results if 'entry_date' in item and 'exit_date' in item
+                )
+                # Display scrolling marquee in Streamlit
+                st.markdown(
+                    f"""
                     <div class="marquee-container">
-                        <span class="marquee">🚀 CondVest Alert: New trading opportunities and market shifts detected! Stay tuned for updates. 📈</span>
+                        <span class="marquee">
+                            CondVest Alert: {scrolling_text}
+                        </span>
                     </div>
-                """, unsafe_allow_html=True)
-
+                    """,
+                    unsafe_allow_html=True
+                )
             with col2:
                 st.markdown("""
                 <div stype="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">

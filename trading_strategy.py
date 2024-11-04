@@ -233,6 +233,106 @@ class DailyTradingStrategy:
                 if len(cur_alert_data) != 0:
                     return stock_data[alert][0]
 
+    def compute_accelerating_profits(self):
+        """
+        Computes the profit or loss for each stock on dates where the "accelerating" alert is active.
+        Uses predefined dynamic protection criteria to determine final profit/loss.
+
+        Returns:
+            pd.DataFrame: A DataFrame with columns ['entry_date', 'exit_date', 'symbol', 'final_profit_loss_pct'].
+        """
+        results = []
+
+        # Loop through each date in the data frame
+        for idx, date in enumerate(self.df['date'].unique()):
+
+            # Step 1: Get the stock candidate for the day
+            cur_stock_pick = self.stock_candidates.iloc[idx]
+
+            # Step 2: Find the stock based on the desired alert
+            stock = self.find_alert(None, cur_stock_pick, desired_alerts=['accelerating'])
+
+            # Step 3: Buy the stock if found
+            if not stock:
+                continue
+
+            # Track initial peak profit and dynamic protection settings
+            peak_profit_pct = 0
+            dynamic_protection = False
+            protected = False
+            final_profit_loss_pct = 0  # Will store final profit/loss for this trade
+            buy_date = date + pd.Timedelta(1, 'day')
+
+            entry_date = self.df[(self.df['symbol'] == stock) \
+                                 & (self.df['interval'] == 1) \
+                                 & (self.df['date'] == buy_date)]['date'].iloc[0]
+
+            entry_price = self.df[(self.df['symbol'] == stock) \
+                                  & (self.df['interval'] == 1) \
+                                  & (self.df['date'] == buy_date)]['open'].iloc[0]
+
+            # Loop through the following dates to simulate price movement after entry
+            available_hold_days = self.df[self.df['date'] > date]['date'].unique()
+            print(f"buy {stock} at {entry_date, entry_price}")
+            for future_date in available_hold_days:
+                # Check if alert signal exists for this date and stock
+                signal = self.alert_df[(self.alert_df['symbol'] == stock) &
+                                       (self.alert_df['date'] == future_date) &
+                                       (self.alert_df['interval'] == 1)]['velocity_alert'].iloc[0]
+
+                future_data = self.df[(self.df['symbol'] == stock)
+                                      & (self.df['interval'] == 1)
+                                      & (self.df['date'] == future_date)]
+
+                current_price = future_data['close'].iloc[0]
+                current_profit_pct = (current_price - entry_price) / entry_price
+
+                # Update peak profit and activate dynamic protection if needed
+                if not dynamic_protection:
+                    if current_profit_pct >= 0.3:
+                        peak_profit_pct = current_profit_pct
+                        print(f"{stock}:need attention")
+                        dynamic_protection = True
+                    else:
+                        dynamic_protection = False
+
+                elif dynamic_protection:
+                    if current_profit_pct > peak_profit_pct:
+                        peak_profit_pct = current_profit_pct
+                        print(f"{stock}:{peak_profit_pct}")
+                    # Dynamic protection: Sell if profit declines by 50% from peak
+                    if (peak_profit_pct - current_profit_pct) >= peak_profit_pct * 0.5:
+                        final_profit_loss_pct = current_profit_pct  # Convert to percentage
+                        exit_date = future_date
+                        dynamic_protection = False
+                        protected = False
+                        print(f'{stock}:sell in protection')
+
+                if not protected:
+                    if signal == 'velocity_loss':
+                        final_profit_loss_pct = current_profit_pct
+                        exit_date = future_date
+                        print(f'{stock}:sell in signal')
+
+                    if future_date == (self.df['date'].max()):
+                        final_profit_loss_pct = current_profit_pct
+                        exit_date = future_date
+                        print(f'{stock}: sell in end')
+
+                else:
+                    return
+
+                    # Append results to store date, symbol, and calculated profit
+            results.append({
+                'entry_date': entry_date,
+                'exit_date': exit_date,
+                'symbol': stock,
+                'final_profit_loss_pct': final_profit_loss_pct
+            })
+
+        # Return results as DataFrame
+        return pd.DataFrame(results)
+
     def run_trading_strategy(self):
         self.execute_critical_trades()
 
@@ -365,7 +465,6 @@ class PickStock:
         }
 
         return stock_dict
-
     def run(self):
         # Initialize a dictionary to hold the results with dates as keys
         stock_candidates = {}
