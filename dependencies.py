@@ -17,8 +17,12 @@ host = st.secrets['host']
 port = st.secrets['port']
 key = st.secrets['password']
 
-account_sid = os.getenv('ACC_SID')
-auth_token = os.getenv('AUTH_TOKEN')
+# account_sid = os.getenv('ACC_SID')
+# auth_token = os.getenv('AUTH_TOKEN')
+
+account_sid = st.secrets('AUTH_TOKEN')
+auth_token = st.secrets('ACC_SID')
+
 twilio_client = Client(account_sid, auth_token)
 
 def hash_password(password):
@@ -69,7 +73,7 @@ def init_postgres():
 
 
 def sign_up_process():
-    twil_phone_number = os.getenv('PHONE_NUMBER')
+    twil_phone_number = st.secrets('PHONE_NUMBER')
     st.subheader('Sign Up')
 
     with st.form(key='signup_form', clear_on_submit=True):

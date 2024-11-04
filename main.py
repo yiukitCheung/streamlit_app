@@ -4,7 +4,7 @@ from dependencies import init_postgres, verify_user, sign_up_process
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
-import random
+
 # Ensure the correct path to the 'data' directory
 from trading_strategy import DailyTradingStrategy
 
