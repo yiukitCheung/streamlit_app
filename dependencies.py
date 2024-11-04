@@ -20,8 +20,8 @@ key = st.secrets['password']
 # account_sid = os.getenv('ACC_SID')
 # auth_token = os.getenv('AUTH_TOKEN')
 
-account_sid = st.secrets('AUTH_TOKEN')
-auth_token = st.secrets('ACC_SID')
+account_sid = st.secrets['AUTH_TOKEN']
+auth_token = st.secrets['ACC_SID']
 
 twilio_client = Client(account_sid, auth_token)
 
