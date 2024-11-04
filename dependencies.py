@@ -1,14 +1,10 @@
 import streamlit as st
 import psycopg2
-import os
-import hashlib
-
-from click import clear
+import os, re, hashlib
 from twilio.rest import Client
 from dotenv import load_dotenv
-import re
 
-load_dotenv()
+# load_dotenv()
 
 # Database connection details
 dbname = st.secrets["db_name_postgres"]
@@ -20,10 +16,10 @@ key = st.secrets['password']
 # account_sid = os.getenv('ACC_SID')
 # auth_token = os.getenv('AUTH_TOKEN')
 
-account_sid = st.secrets['AUTH_TOKEN']
-auth_token = st.secrets['ACC_SID']
+account_sid = st.secrets['twilio']['ACC_SID']
+auth_token = st.secrets['twilio']['AUTH_TOKEN']
 
-twilio_client = Client(account_sid, auth_token)
+client = Client(account_sid, auth_token)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -71,9 +67,10 @@ def init_postgres():
     except Exception as e:
         st.error(f"An error occurred: {e}")
 
-
 def sign_up_process():
-    twil_phone_number = st.secrets['PHONE_NUMBER']
+    twil_phone_number = st.secrets['twilio']['PHONE_NUMBER']
+
+    print(twil_phone_number)
     st.subheader('Sign Up')
 
     with st.form(key='signup_form', clear_on_submit=True):
@@ -100,7 +97,7 @@ def sign_up_process():
             hashed_pw = hash_password(password)
             if insert_user_data(username, hashed_pw, phone_number):
                 st.success(f"Account created successfully for {username}!")
-                send_welcome_msg(twil_phone_number, phone_number)
+                send_welcome_msg(client, twil_phone_number, phone_number)
                 st.balloons()
 
                 # Redirect to login page after successful signup
@@ -143,7 +140,7 @@ def validate_phone_number(phone_number):
 
 def insert_user_data(username, password, phone_number):
     try:
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port)
+        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO public.users (username, password, mobile) VALUES (%s, %s, %s)",
                        (username, password, phone_number))
@@ -155,10 +152,10 @@ def insert_user_data(username, password, phone_number):
         st.error(f"Error inserting user data: {e}")
         return False
 
-def send_welcome_msg(number, target_number):
-    body = 'Hi! Welcome to Condvest. The only stock screening system that help you invest...'
+def send_welcome_msg(twilio_client, number, target_number):
+    body = 'Hi! Welcome to CondVest. The only financial market assistant that help you invest...'
     try:
-        message = twilio_client.messages.create(
+        twilio_client.messages.create(
             body=body,
             from_=number,
             to=target_number
@@ -170,7 +167,7 @@ def send_welcome_msg(number, target_number):
 def verify_user(username, password):
     try:
         # Replace with your actual PostgreSQL database credentials
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port)
+        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
         cursor = conn.cursor()
         cursor.execute("SELECT password, role FROM users WHERE username = %s", (username,))
         result = cursor.fetchone()

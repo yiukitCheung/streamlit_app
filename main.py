@@ -72,7 +72,8 @@ def main():
         st.sidebar.button("User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
         st.sidebar.button("Long Term Analysis", on_click=lambda: st.session_state.update(current_page="Long Term"))
         st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
-
+    elif st.session_state['current_page'] == "Sign Up":
+        st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
 
     # Display page content based on the current page
     placeholder = st.empty()
