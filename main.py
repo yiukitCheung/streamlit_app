@@ -104,12 +104,12 @@ def main():
                         padding-left: 1%; /* Start outside view */
                         font-size: 18px;
                         font-weight: bold;
-                        animation: scroll 70s linear infinite; 
+                        animation: scroll 120s linear infinite; 
                     }
 
                     /* Define the scrolling animation */
                     @keyframes scroll {
-                        0% { transform: translateX(25%); } /* Start closer */
+                        0% { transform: translateX(15%); } /* Start closer */
                         100% { transform: translateX(-100%); }
                     }
                     </style>
@@ -119,7 +119,7 @@ def main():
                 scrolling_text = " | ".join(
                     f"<span style='color: {'#4CAF50' if item['final_profit_loss_pct'] > 0 else '#FF5733'}'>"
                     f"🚀 {item['symbol']}: Entry {item['entry_date'].strftime('%Y-%m-%d')} | Exit {item['exit_date'].strftime('%Y-%m-%d')} | "
-                    f"Profit/Loss: {item['final_profit_loss_pct']:.2f}%"
+                    f"Profit/Loss: {item['final_profit_loss_pct'] * 100:.2f}%"
                     f"</span>"
                     for item in sand_box_results if 'entry_date' in item and 'exit_date' in item
                 )
