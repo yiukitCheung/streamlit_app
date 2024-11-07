@@ -14,6 +14,7 @@ WAREHOUSE_INTERVAL = st.secrets.warehouse_interval
 WAREHOUSE_INTERVAL_COLLECTION = '1d_data'
 PROCESSED_COLLECTION = st.secrets.processed_collection_name
 ALERT_COLLECTION = st.secrets.alert_collection_name
+CANDI_COLLECTION = st.secrets.candidate_collection_name
 
 @st.cache_data
 def get_most_current_trading_date() -> str:
@@ -75,6 +76,23 @@ def compute_metrics(filtered_trades):
     final_trade_profit_rate = round((filtered_trades['total_asset'].iloc[-1] - 10000) / 100, 2)
 
     return [win_trades, loss_trades, final_trade_profit_rate]
+
+def find_alert_symbols(data_dict: list, alert_type: str):
+    results_set = set()
+    for entry in data_dict:
+        if alert_type in entry and entry[alert_type]:
+            results_set.update(entry[alert_type])  # Add all symbols in the array to the set
+    return list(results_set)
+
+def find_velocity_alert(data_dict: list, alert: int):
+    results_set = {
+        entry['symbol']
+        for entry in data_dict
+        if 'alerts' in entry and
+           'main_accumulating' in entry['alerts'] and
+           entry['main_accumulating'] == alert
+    }
+    return list(results_set)
 
 # ======================================================================================== #
 # Simulated Trading Plot comparison and Simulated Trading Statistics Results Presentation  #
@@ -218,103 +236,81 @@ def display_user_dashboard_content(line_chart,
         cur_alert_dict = cur_alert_dict
     profit_color = "green" if final_trade_profit_rate > 0 else "red"
 
-    left_comp, right_comp = st.columns([3,1])
+    # Display the final trade profit rate
+    st.plotly_chart(line_chart)
+
+    left_comp, right_comp = st.columns(2)
 
     with left_comp:
-        st.plotly_chart(line_chart)
+        results = find_alert_symbols(cur_alert_dict, 'accelerating')
+        st.markdown("""
+            <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
+                Stock Accelerating
+            </div>
+        """, unsafe_allow_html=True)
+        if not results:
+            st.write("No Opportunity found today, bored... 😴")
+        else:
+            # Add Buy specific styles
+            st.markdown("""
+                <style>
+                    .buy-container {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                    }
+                    .buy-badge {
+                        background-color: #4CAF50 !important;
+                        color: white;
+                        padding: 8px 12px;
+                        border-radius: 5px;
+                        font-size: 16px;
+                        text-align: center;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
+
+            st.markdown('<div class="buy-container">', unsafe_allow_html=True)
+            for symbol in results:
+                st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with right_comp:
 
-        def find_momentum_alert(data_dict: list, alert: str):
-            results_set = {
-                entry['symbol']
-                for entry in data_dict
-                if 'alerts' in entry and
-                   'momentum_alert' in entry['alerts'] and
-                   entry['alerts']['momentum_alert']['alert_type'] == alert
-            }
-            return list(results_set)
+        decelerated_results = find_alert_symbols(cur_alert_dict, "main_accumulating")
+        results =  decelerated_results
 
-        def find_velocity_alert(data_dict: list, alert: str):
-            results_set = {
-                entry['symbol']
-                for entry in data_dict
-                if 'alerts' in entry and
-                   'velocity_alert' in entry['alerts'] and
-                   entry['alerts']['velocity_alert']['alert_type'] == alert
-            }
-            return list(results_set)
-
-        with st.container():
-            results = find_momentum_alert(cur_alert_dict, 'accelerated')
+        st.markdown("""
+            <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
+                Main Accumulating 
+            </div>
+        """, unsafe_allow_html=True)
+        if not results:
+            st.write("No Opportunity found today, bored... 😴")
+        else:
+            # Add Sell specific styles
             st.markdown("""
-                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
-                    Buy Signal
-                </div>
+                <style>
+                    .sell-container {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 10px;
+                    }
+                    .sell-badge {
+                        background-color: #4CAF50 !important;
+                        color: white;
+                        padding: 8px 12px;
+                        border-radius: 5px;
+                        font-size: 16px;
+                        text-align: center;
+                    }
+                </style>
             """, unsafe_allow_html=True)
-            if not results:
-                st.write("No Opportunity found today, bored... 😴")
-            else:
-                # Add Buy specific styles
-                st.markdown("""
-                    <style>
-                        .buy-container {
-                            display: flex;
-                            flex-wrap: wrap;
-                            gap: 10px;
-                        }
-                        .buy-badge {
-                            background-color: #4CAF50 !important;
-                            color: white;
-                            padding: 8px 12px;
-                            border-radius: 5px;
-                            font-size: 16px;
-                            text-align: center;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
 
-                st.markdown('<div class="buy-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-        with st.container():
-            decelerated_results = find_momentum_alert(cur_alert_dict, 'decelerated')
-            vel_loss_results = find_velocity_alert(cur_alert_dict, 'velocity_loss')
-            results =  decelerated_results + vel_loss_results
-
-            st.markdown("""
-                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
-                    Sell Signal
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.write("No Disaster found today, Great...😊")
-            else:
-                # Add Sell specific styles
-                st.markdown("""
-                    <style>
-                        .sell-container {
-                            display: flex;
-                            flex-wrap: wrap;
-                            gap: 10px;
-                        }
-                        .sell-badge {
-                            background-color: #FF0000 !important;
-                            color: white;
-                            padding: 8px 12px;
-                            border-radius: 5px;
-                            font-size: 16px;
-                            text-align: center;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-
-                st.markdown('<div class="sell-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="sell-container">', unsafe_allow_html=True)
+            for symbol in results:
+                st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 def user_dashboard():
     # Title
@@ -324,8 +320,8 @@ def user_dashboard():
 
     # Prepare data for display data
     most_recent_trade_date = pd.to_datetime(get_most_current_trading_date())
-    alert_collection = initialize_mongo_client()[DB_NAME][ALERT_COLLECTION]
-    current_alerts_dict = list(alert_collection.find({"date": {"$gte": most_recent_trade_date}}))
+    candidate_collection = initialize_mongo_client()[DB_NAME][CANDI_COLLECTION]
+    current_alerts_dict = list(candidate_collection.find({"date": {"$gte": most_recent_trade_date}}))
 
     # Display all content
     display_user_dashboard_content(line_chart=line_chart, final_trade_profit_rate=final_trade_profit_rate, cur_alert_dict=current_alerts_dict)
