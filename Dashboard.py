@@ -129,18 +129,6 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
         ))
         
         cum_return_chart.update_layout(
-            xaxis=dict(
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1m", step="month", stepmode="backward"),
-                        dict(count=3, label="3m", step="month", stepmode="backward"),
-                        dict(count=6, label="6m", step="month", stepmode="backward"),
-                        dict(count=1, label="YTD", step="year", stepmode="todate"),
-                        dict(count=5, label="5y", step="year", stepmode="backward"),
-                        dict(step="all", label="Max")  # Display all available data
-                    ])
-                ),
-            ),
             title={
                 "text": f"{selected_symbols} YTD Return",
                 "x": 0.5,  # Center the title
@@ -168,7 +156,7 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
 
         candlestick_chart = go.Figure()
         candlestick_chart.add_trace(go.Candlestick(
-            x=filtered_df['date'],
+            x=filtered_df['date'].astype(str),
             open=filtered_df['open'],
             high=filtered_df['high'],
             low=filtered_df['low'],
@@ -188,22 +176,22 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
                         dict(count=5, label="5y", step="year", stepmode="backward"),
                         dict(step="all", label="Max")  # Display all available data
                     ])
-                ),
-                rangeslider=dict(visible=False),  # Hide the range slider
-                type="date"
+                )
             ),
+            
             title={
-                "text": f"{selected_symbols} Candlesticks",
+                "text": f"{selected_symbols} Candlesticks", 
                 "x": 0.5,
                 "xanchor": "center",
                 "yanchor": "top"
             },
+            xaxis_rangeslider_visible=False,
             xaxis_title="Date",
             yaxis_title="Price",
             template="plotly_white",
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
+                yanchor="bottom", 
                 y=1.02,
                 xanchor="right",
                 x=1
@@ -315,6 +303,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                             5: "Medium Term",
                             8: "Medium-Long Term",
                             13: "Long Term"}
+                
                 alert_data = fetch_alert_data(st.session_state['instrument'], selected_symbols)
                 distinct_intervals = alert_data['interval'].unique()
                 interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
