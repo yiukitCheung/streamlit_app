@@ -19,14 +19,15 @@ def fetch_stock_data(collection, stock_symbol, interval):
     if not warehouse_interval:
         raise ValueError("warehouse_interval is empty in st.secrets")
     return pd.DataFrame(list(collection.find({"symbol": stock_symbol,
-                                            "interval": interval}, 
+                                            "interval": interval,
+                                            "instrument": "equity"}, 
                                             {"_id": 0}))).sort_values(by=['date'])
 
 def fetch_alert_data(collection, stock_symbol,interval):
     if not interval:
         raise ValueError("warehouse_interval is empty in st.secrets")
         # Fetch the data from MongoDB and convert to DataFrame
-    data = list(collection.find({'symbol': stock_symbol, 'interval': interval}, {'_id': 0}))
+    data = list(collection.find({'symbol': stock_symbol, 'interval': interval, 'instrument': 'equity'}, {'_id': 0}))
 
     # Extract the alerts from the alert_dict
     for entry in data:
@@ -69,6 +70,7 @@ def create_figure(filtered_df):
         low=filtered_df['low'],
         close=filtered_df['close'],
         name='price'), row=1, col=1)
+    
     fig.update_xaxes(range=[start_date, end_date],title_text="Date", row=1, col=1)
     
     for ema in ['144ema', '169ema', '13ema', '8ema']:
@@ -85,19 +87,19 @@ def create_figure(filtered_df):
 def display_alerts(alert_df):
     # Display Alert
     today_alert = alert_df[alert_df['date'] == alert_df['date'].max()]
-
+    
     # Function to map alert values to color and message
     def get_alert_color_and_message(alert_type, value):
         alert_mappings = {
             'velocity_alert': {
                 'velocity_maintained': ('green', 'Velocity Maintained'),
-                'velocity_weak': ('red', 'Velocity Weakened'),
+                'velocity_weak': ('orange', 'Velocity Weakened'),
                 'velocity_loss': ('red', 'Velocity Loss'),
-                'velocity_negotiating': ('red', 'Velocity Negotiating')
+                'velocity_negotiating': ('orange', 'Velocity Negotiating')
             },
             'touch_type': {
                 'support': ('green', 'Support'),
-               'resistance': ('red', 'Resistance')
+                'resistance': ('red', 'Resistance')
             },
             'momentum_alert': {
                 "accelerated": ('green', 'Accelerating'),
@@ -123,24 +125,26 @@ def display_alerts(alert_df):
                     <span style="font-size:50px; color:{alert_color}">●</span>
                     <div style="font-size:16px; font-weight:bold; margin-top:10px; color:{alert_color};">{alert_message}</div>
                     </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
                 
     # Display the alerts            
     plot_alert(today_alert)
-    
+
 def static_analysis_page(processed_col, alert_col):
     # Set the page title and layout
     st.markdown("<h1 style='text-align: center;'>Long Term Alert Dashboard</h1>", unsafe_allow_html=True)
     
     # Add a sidebar
     # Create a dropdown to select the stock
-    stock_selector = st.sidebar.selectbox('Select Stock', options=sorted(processed_col.distinct("symbol")), index=0)
+    
+    stock_options = sorted(processed_col.find({'instrument':'equity'}).distinct("symbol"))
+    stock_selector = st.sidebar.selectbox('Select Stock', options=stock_options, index=0)
     # Create a dropdown to select the interval
     default_interval = '1D'
     interval_selector = st.sidebar.selectbox('Optimal Interval/ Select Interval',
-                                             options=sorted(processed_col.distinct("interval")),
-                                             index=sorted(processed_col.distinct("interval")). \
-                                             index(default_interval) if default_interval in processed_col.distinct("interval")\
+                                            options=sorted(processed_col.distinct("interval")),
+                                            index=sorted(processed_col.distinct("interval")). \
+                                            index(default_interval) if default_interval in processed_col.distinct("interval")\
                                             else 0)
 
     alert_df = fetch_alert_data(alert_col, stock_selector, interval_selector)

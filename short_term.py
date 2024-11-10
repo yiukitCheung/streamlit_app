@@ -301,13 +301,13 @@ def display_live_data():
     # Initialize MongoDB client
     db = initialize_mongo_client()
     # Get the list of stocks
-    options = sorted(db[STREAMING_COLLECTIONS[0]].distinct("symbol"))
+    options = sorted(db[STREAMING_COLLECTIONS[0]].find({'instrument':'equity'}).distinct("symbol"))
     intervals = DESIRED_STREAMING_INTERVAL
     # Streamlit UI
     st.sidebar.header("Selector")
     st.markdown("<h1 style='text-align: center;'>Short Term Alerts Dashboard</h1>", unsafe_allow_html=True)
-    stock_selector = st.sidebar.selectbox('Select Stock', options=options, index=0)
-    intervals_selector = st.sidebar.selectbox('Select Interval', options=intervals, index=1)
+    stock_selector = st.sidebar.selectbox('Select Stock', options=options, index=len(options) - 1)
+    intervals_selector = st.sidebar.selectbox('Select Interval', options=intervals, index=len(intervals) - 1)
     # Create a placeholder for the chart
     chart_placeholder = st.empty()
     # Continuously update the chart every minute

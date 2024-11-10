@@ -3,10 +3,11 @@ import streamlit as st
 import pandas as pd
 from pymongo import MongoClient
 import yfinance as yf
+
 from datetime import datetime
 from long_term import long_term_dashboard
 # Ensure the correct path to the 'data' directory
-from trading_strategy import DailyTradingStrategy, PickStock
+from stock_candidates_analysis import DailyTradingStrategy, Pick_Stock
 
 # MongoDB Configuration
 DB_NAME = st.secrets['db_name']
@@ -36,29 +37,41 @@ def initialize_mongo_client():
     return client
 
 @st.cache_data
-def fetch_index_return(symbol):
+def fetch_data(instrument, interval):
+    
+    collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
+    query = {"instrument": instrument, "interval": interval}
+    cursor = collection_obj.find(query)
+    
+    return pd.DataFrame(list(cursor))
+
+@st.cache_data
+def fetch_alert_data(instrument, symbol):
+    
+    collection_obj = initialize_mongo_client()[DB_NAME][ALERT_COLLECTION]
+    query = {"instrument": instrument, "symbol": symbol}
+    cursor = collection_obj.find(query)
+    
+    return pd.DataFrame(list(cursor))
+
+@st.cache_data
+def fetch_return_data(instrument):
     if not WAREHOUSE_INTERVAL:
         raise ValueError("warehouse_interval is empty in st.secrets")
-    start_of_year = datetime(datetime.now().year, 1, 1).strftime("%Y-%m-%d")
 
     # Fetch data from MongoDB for the specified symbol and date range
-    Ticker = yf.Ticker(symbol)
-    df = Ticker.history(
-        start = start_of_year,
-        interval=WAREHOUSE_INTERVAL).reset_index()
-
-    # Ensure the DataFrame is sorted by date
-    df = df.sort_values(by="Date")
+    df = fetch_data(instrument, 1)
+    
     # Calculate cumulative returns based on the first available 'close' value
-    df['cumulative_return'] = df['Close'].pct_change().fillna(0).add(1).cumprod()
-
+    distinct_symbols = df['symbol'].unique()
+    symbol_dfs = []
+    for symbol in distinct_symbols:
+        symbol_df = df[df['symbol'] == symbol]
+        symbol_df.loc[:, 'cumulative_return'] = symbol_df.loc[:, 'close'].pct_change().fillna(0).add(1).cumprod()
+        symbol_dfs.append(symbol_df)
+    df = pd.concat(symbol_dfs)
+    
     return df
-
-def get_trade_data(data_collection, alert_collection):
-    stock_candidates = PickStock(alert_collection).run()
-    trades_history = DailyTradingStrategy(data_collection, alert_collection, stock_candidates)
-    trades_history.execute_critical_trades()
-    return trades_history.get_trades()
 
 @st.cache_data
 def compute_metrics(filtered_trades):
@@ -89,8 +102,8 @@ def find_velocity_alert(data_dict: list, alert: int):
         entry['symbol']
         for entry in data_dict
         if 'alerts' in entry and
-           'main_accumulating' in entry['alerts'] and
-           entry['main_accumulating'] == alert
+        'main_accumulating' in entry['alerts'] and
+        entry['main_accumulating'] == alert
     }
     return list(results_set)
 
@@ -98,158 +111,288 @@ def find_velocity_alert(data_dict: list, alert: int):
 # Simulated Trading Plot comparison and Simulated Trading Statistics Results Presentation  #
 # ======================================================================================== #
 
-def plot_index_return():
+def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
     # Plot the cumulative return of Index
-    line_chart = go.Figure()
-    for index in ['QQQ', 'SPY', 'DIA']:
-        data = fetch_index_return(index)[['cumulative_return', 'Date']]
-
-        line_chart.add_trace(go.Scatter(
-            x=data['Date'],
-            y=data['cumulative_return'],  # Ensure you use 'cumulative_return' as the y-axis
+    if chart_type == "Cumulative Return":
+        cum_return_chart = go.Figure()
+        cum_return_data = fetch_return_data(instrument)[['cumulative_return', 'date','symbol']]
+        
+        
+        data = cum_return_data[cum_return_data['symbol'] == selected_symbols]
+        
+        cum_return_chart.add_trace(go.Scatter(
+            x=data['date'],
+            y=data['cumulative_return'],
             mode='lines+markers',
-            name=index,
+            name=selected_symbols,
             opacity=0.5
         ))
-
-    # Initialize MongoDB client and fetch the processed data
-    client = initialize_mongo_client()
-    symbols = client[st.secrets['db_name']][st.secrets['processed_collection_name']].distinct("symbol")
-    win_trades = loss_trades = final_trade_profit_rate = 0
-
-    # Compute cumulative return of trades
-    if st.button("Show Portfolio Return"):
-        # Fetch trade data
-        df_trades = get_trade_data(client[DB_NAME][PROCESSED_COLLECTION],
-                                   client[DB_NAME][ALERT_COLLECTION])
-
-        # Compute metrics (e.g., win rate, loss rate, final profit rate)
-        win_trades, loss_trades, final_trade_profit_rate = compute_metrics(df_trades)
-
-        # Ensure 'Exit_date' is in datetime format
-        df_trades['Exit_date'] = pd.to_datetime(df_trades['Exit_date'])
-
-        # If there is only 1 trade
-        if len(df_trades) == 1:
-            df_trades['Entry_date'] = pd.to_datetime(df_trades['Entry_date'])
-            df_trades['Exit_date'] = pd.to_datetime(df_trades['Exit_date'])
-
-            entry_date = df_trades.loc[0, 'Entry_date']
-            exit_date = df_trades.loc[0, 'Exit_date']
-
-            # Calculate cumulative return at exit
-            entry_price = df_trades.loc[0, 'Entry_price']
-            exit_price = df_trades.loc[0, 'Exit_price']
-            cumulative_return_at_exit = 1 + (exit_price - entry_price) / entry_price
-
-            # To visualize target data over a range, we need an artificial date range
-            date_range = pd.date_range(start=entry_date, end=exit_date, freq='D')
-
-            # Generate linearly interpolated cumulative return data
-            cumulative_returns = [1 + (cumulative_return_at_exit - 1) * (i / (len(date_range) - 1)) for i in
-                                  range(len(date_range))]
-
-            # Plotting the cumulative return of a single trade
-            line_chart.add_trace(go.Scatter(
-                x=date_range,
-                y=cumulative_returns,
-                mode='lines',
-                name='Portfolio',
-                marker_line_color="rgba(0,0,0,0.7)",
-                opacity=1
-            ))
-            #
-        # If there are multiple trades
-        else:
-            # Remove the '%' symbol and convert profit/loss to numeric
-            df_trades['profit/loss'] = df_trades['profit/loss'].str.replace('%', '').astype(float) / 100
-
-            # Calculate the cumulative return
-            df_trades['cumulative_return'] = (1 + df_trades['profit/loss']).cumprod()
-
-            # Add the cumulative return of the trades to the line chart
-            line_chart.add_trace(go.Scatter(
-                x=df_trades['Exit_date'],
-                y=df_trades['cumulative_return'],
-                mode='lines+markers',
-                name='Portfolio',
-                marker_line_color="rgba(0,0,0,0.7)",
-                opacity=1
-            ))
-
-    line_chart.update_layout(
-        title={
-            "text": "Portfolio Return vs. SPY/QQQ Index",
-            "x": 0.5,  # Center the title
-            "xanchor": "center",  # Anchor the title at the center
-            "yanchor": "top"  # Anchor the title at the top
-        },
-        xaxis_title="Date",
-        yaxis_title="Cumulative Return",
-        template="plotly_white",
-        legend=dict(
+        
+        cum_return_chart.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(count=3, label="3m", step="month", stepmode="backward"),
+                        dict(count=6, label="6m", step="month", stepmode="backward"),
+                        dict(count=1, label="YTD", step="year", stepmode="todate"),
+                        dict(count=5, label="5y", step="year", stepmode="backward"),
+                        dict(step="all", label="Max")  # Display all available data
+                    ])
+                ),
+            ),
+            title={
+                "text": f"{selected_symbols} YTD Return",
+                "x": 0.5,  # Center the title
+                "xanchor": "center",  # Anchor the title at the center
+                "yanchor": "top"  # Anchor the title at the top
+            },
+            xaxis_title="Date",
+            yaxis_title="Cumulative Return",
+            template="plotly_white",
+            legend=dict(
             orientation="h",
             yanchor="bottom",
             y=1.02,
             xanchor="right",
-            x=1
+                x=1
+            ))
+        chart = cum_return_chart
+        
+    elif chart_type == "Candlesticks":
+        df = fetch_data(instrument, 1)[['date', 'open', 'high', 'low', 'close', 'symbol']]
+        
+        # Filter the data for the selected symbol
+        distinct_symbols = df['symbol'].unique() if not selected_symbols else selected_symbols
+        filtered_df = df[df['symbol'] == distinct_symbols]
+
+        candlestick_chart = go.Figure()
+        candlestick_chart.add_trace(go.Candlestick(
+            x=filtered_df['date'],
+            open=filtered_df['open'],
+            high=filtered_df['high'],
+            low=filtered_df['low'],
+            close=filtered_df['close'],
+            name='price'
         ))
 
-    return line_chart, win_trades, loss_trades, final_trade_profit_rate
+        # Update layout to include range selector but without the range slider
+        candlestick_chart.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(count=3, label="3m", step="month", stepmode="backward"),
+                        dict(count=6, label="6m", step="month", stepmode="backward"),
+                        dict(count=1, label="YTD", step="year", stepmode="todate"),
+                        dict(count=5, label="5y", step="year", stepmode="backward"),
+                        dict(step="all", label="Max")  # Display all available data
+                    ])
+                ),
+                rangeslider=dict(visible=False),  # Hide the range slider
+                type="date"
+            ),
+            title={
+                "text": f"{selected_symbols} Candlesticks",
+                "x": 0.5,
+                "xanchor": "center",
+                "yanchor": "top"
+            },
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_white",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
 
-# ====================================================================== #
-# Buy/ Hold/ Sell Suggested Stock Presentation based on Velocity Alerts  #
-# ====================================================================== #
+        chart = candlestick_chart
+        
+    elif chart_type == 'Line Chart':
+        line_chart = go.Figure()
+        data = fetch_data(instrument, 1)[['close', 'date', 'symbol']]
+        data = data[data['symbol'] == selected_symbols]
 
-def display_user_dashboard_content(line_chart,
-                   final_trade_profit_rate=None,
-                   cur_alert_dict=None):
-    # CSS styling for metric containers
-    st.markdown("""
-        <style>
-        .metric-container {
-            background-color: #f5f5f5;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            text-align: center;
-            height: 100%;
-        }
-        .metric-label {
-            font-weight: bold;
-            font-size: 24px;
-            margin: 0;
-        }
-        .metric-value {
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 8px;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    # Determine the color of the profit value based on its sign
-    if cur_alert_dict is None:
-        cur_alert_dict = cur_alert_dict
-    profit_color = "green" if final_trade_profit_rate > 0 else "red"
+        line_chart.add_trace(go.Scatter(
+            x=data['date'],
+            y=data['close'],
+            fill='tozeroy',
+            name=selected_symbols,
+            opacity=0.5
+        ))
+        
+        # Update y-axis properties with padding
+        line_chart.update_yaxes(
+            range=[min(data['close']) * 0.9, max(data['close']) * 1.1],  # Adjust the range to add padding
+            title='Value',
+            showgrid=True,  # Optional: show gridlines for better readability
+            zeroline=True  # Optional: show a zero line if needed
+        )
+        # Update layout to include range selector and range slider
+        line_chart.update_layout(
+            xaxis=dict(
+                rangeselector=dict(
+                    buttons=list([
+                        dict(count=1, label="1m", step="month", stepmode="backward"),
+                        dict(count=3, label="3m", step="month", stepmode="backward"),
+                        dict(count=6, label="6m", step="month", stepmode="backward"),
+                        dict(count=1, label="YTD", step="year", stepmode="todate"),
+                        dict(count=5, label="5y", step="year", stepmode="backward"),
+                        dict(step="all", label="Max")  # Display all available data
+                    ])
+                ),
+                rangeslider=dict(visible=True),  # Add a range slider below the x-axis
+                type="date"
+            ),
+            xaxis_rangeslider_visible=False,
+            title={
+                "text": f"{selected_symbols} YTD Line Chart",
+                "x": 0.5,
+                "xanchor": "center",
+                "yanchor": "top"
+            },
+            xaxis_title="Date",
+            yaxis_title="Price",
+            template="plotly_white",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        chart = line_chart
+    return chart
 
-    # Display the final trade profit rate
-    st.plotly_chart(line_chart)
+def display_user_dashboard_content(cur_alert_dict=None):
+    # Create a container for the overview section
+    main_container = st.container()
+    with main_container:
+        overview_container = st.container()
+        with overview_container:
+            # Create columns for the instrument dropdown, symbol selection, and chart type
+            col1, col2, col3 = st.columns([1, 1, 1])  # Adjust the width ratios as needed
 
+            # Dropdown for instrument selection
+            with col1:
+                instrument_options = ["Index", "Commodity", "Sector", "Bond"]
+                selected_instrument = st.selectbox("Select Instrument", options=instrument_options, key="instrument_dropdown")
+                st.session_state['instrument'] = selected_instrument.lower()  # Set session state based on selection
+
+            # Symbol selection dropdown
+            with col2:
+                if 'instrument' not in st.session_state:
+                    st.session_state['instrument'] = "index"
+                try:
+                    symbols = fetch_data(st.session_state['instrument'], 1)['symbol'].unique()
+                    selected_symbols = st.selectbox("Select Symbol", options=symbols)
+                except Exception as e:
+                    st.error(f"Error fetching symbols: {str(e)}")
+
+            # Chart type radio buttons
+            with col3:
+                chart_type = st.selectbox("Chart Type", options=["Cumulative Return", "Candlesticks", "Line Chart"])
+                chart = overview_chart(st.session_state['instrument'], selected_symbols, chart_type)
+
+            # Display the chart below the selection section
+            chart_layout = st.columns([4, 1])
+            with chart_layout[0]:
+                try:
+                    st.plotly_chart(chart, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Error displaying chart: {str(e)}")
+                    
+            with chart_layout[1]:
+                interval_mapping = {
+                            1: "Short Term",
+                            3: "Short-Medium Term",
+                            5: "Medium Term",
+                            8: "Medium-Long Term",
+                            13: "Long Term"}
+                alert_data = fetch_alert_data(st.session_state['instrument'], selected_symbols)
+                distinct_intervals = alert_data['interval'].unique()
+                interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
+                label_to_interval = {v: k for k, v in interval_mapping.items()}
+
+                # Slidebar for interval selection
+                selected_label = st.select_slider("Signal Intensity", options=interval_labels, key='interval_slider')
+                selected_interval = label_to_interval[selected_label]
+                cur_alert_data = alert_data[alert_data['interval'] == selected_interval].iloc[-1]['alerts']
+                
+                def get_dot_color(cur_alert_data):
+                    
+                    if "velocity_alert" in cur_alert_data:
+                        if "velocity_maintained" in cur_alert_data['velocity_alert']['alert_type']:
+                            return "green"  # Healthy signal
+                        elif "velocity_loss" in cur_alert_data['velocity_alert']['alert_type']:
+                            return "red"  # Pessimistic signal
+                        elif "velocity_weak" in cur_alert_data['velocity_alert']['alert_type']:
+                            return "orange"  # Moderate or risk signal
+                        elif "velocity_negotiating" in cur_alert_data['velocity_alert']['alert_type']:
+                            return "yellow"  # Neutral signal
+                    return "grey"  # Default for consolidating
+
+                # Update dot color based on the logic
+                dot_colors = [
+                    get_dot_color(cur_alert_data) if "velocity_maintained" in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey",
+                    get_dot_color(cur_alert_data) if "velocity_weak" in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey",
+                    get_dot_color(cur_alert_data) if "velocity_loss" in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey",
+                    get_dot_color(cur_alert_data) if "velocity_negotiating" in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey",
+                    get_dot_color(cur_alert_data) if "velocity_maintained" not in cur_alert_data['velocity_alert'].get('alert_type', '') and
+                    "velocity_weak" not in cur_alert_data['velocity_alert'].get('alert_type', '') and
+                    "velocity_loss" not in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey"
+                ]
+
+                # Display the dots with the correct color and uniform text alignment
+                st.markdown(f"""
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 20px; gap: 35px;">
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div style="width: 25px; height: 25px; background-color: {dot_colors[0]}; border-radius: 50%;"></div> 
+                            <div style="width: 120px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
+                        </div>
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div style="width: 25px; height: 25px; background-color: {dot_colors[4]}; border-radius: 50%;"></div> 
+                            <div style="width: 120px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Neutral</div>
+                        </div>
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div style="width: 25px; height: 25px; background-color: {dot_colors[1]}; border-radius: 50%;"></div>
+                            <div style="width: 120px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Flag for Risk</div>
+                        </div>
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div style="width: 25px; height: 25px; background-color: {dot_colors[2]}; border-radius: 50%;"></div>
+                            <div style="width: 120px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Pessimistic</div>
+                        </div>
+                        <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div style="width: 25px; height: 25px; background-color: {dot_colors[3]}; border-radius: 50%;"></div>
+                            <div style="width: 120px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Consolidating</div>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                                
+    # Opportunity of the day Section
+    st.markdown(f"<h3 style='text-align: center;'>Opportunity of the Day </h3>", unsafe_allow_html=True)
+    # Display the Accelerating and Uptrend Position Building Stocks
     left_comp, right_comp = st.columns(2)
-
     with left_comp:
         results = find_alert_symbols(cur_alert_dict, 'accelerating')
         st.markdown("""
             <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
-                Stock Accelerating
+                Accelerating 
             </div>
         """, unsafe_allow_html=True)
         if not results:
-            st.write("No Opportunity found today, bored... 😴")
+            st.markdown("""
+                <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
+                    No Opportunity found today, bored... 😴
+                </div>
+            """, unsafe_allow_html=True)
         else:
             # Add Buy specific styles
             st.markdown("""
@@ -274,19 +417,22 @@ def display_user_dashboard_content(line_chart,
             for symbol in results:
                 st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
     with right_comp:
 
         decelerated_results = find_alert_symbols(cur_alert_dict, "main_accumulating")
         results =  decelerated_results
 
         st.markdown("""
-            <div style="text-align: center; font-size: 24px; font-weight: bold; color: #4CAF50;">
-                Main Accumulating 
+            <div style="text-align: center; font-size: 24px; font-weight: bold; color: #FFA500;">
+                Uptrend Position Building
             </div>
         """, unsafe_allow_html=True)
         if not results:
-            st.write("No Opportunity found today, bored... 😴")
+            st.markdown("""
+                <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
+                    No Opportunity found today, bored... 😴
+                </div>
+            """, unsafe_allow_html=True)
         else:
             # Add Sell specific styles
             st.markdown("""
@@ -297,7 +443,7 @@ def display_user_dashboard_content(line_chart,
                         gap: 10px;
                     }
                     .sell-badge {
-                        background-color: #4CAF50 !important;
+                        background-color: #FFA500 !important;
                         color: white;
                         padding: 8px 12px;
                         border-radius: 5px;
@@ -311,12 +457,12 @@ def display_user_dashboard_content(line_chart,
             for symbol in results:
                 st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
+    
 def user_dashboard():
-    # Title
-    st.markdown("<h1 style='text-align: center;'>User Dashboard</h1>", unsafe_allow_html=True)
-    # Prepare the index cumulative return chart and portfolio return performance
-    line_chart , _, _, final_trade_profit_rate = plot_index_return()
+    # Welcom message
+    username = (st.session_state['username']).capitalize()
+    
+    st.markdown(f"<h1 style='text-align: center;'>{username}'s Dashboard </h1>", unsafe_allow_html=True)
 
     # Prepare data for display data
     most_recent_trade_date = pd.to_datetime(get_most_current_trading_date())
@@ -324,7 +470,7 @@ def user_dashboard():
     current_alerts_dict = list(candidate_collection.find({"date": {"$gte": most_recent_trade_date}}))
 
     # Display all content
-    display_user_dashboard_content(line_chart=line_chart, final_trade_profit_rate=final_trade_profit_rate, cur_alert_dict=current_alerts_dict)
+    display_user_dashboard_content(cur_alert_dict=current_alerts_dict)
 
 def main():
     user_dashboard()

@@ -55,7 +55,7 @@ def init_postgres():
         if not admin_exists:
             username, password, mobile, role = "admin", "password123", "1234567890", "admin"
             cursor.execute("INSERT INTO public.users (username, password, mobile, role) VALUES (%s, %s, %s, %s)",
-                           (username, hash_password(password), mobile, role))
+                        (username, hash_password(password), mobile, role))
             conn.commit()
             st.success("Admin account created.")
 
@@ -143,7 +143,7 @@ def insert_user_data(username, password, phone_number):
         conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO public.users (username, password, mobile) VALUES (%s, %s, %s)",
-                       (username, password, phone_number))
+                    (username, password, phone_number))
         conn.commit()
         cursor.close()
         conn.close()

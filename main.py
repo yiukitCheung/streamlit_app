@@ -6,7 +6,7 @@ from long_term import long_term_dashboard
 from short_term import display_live_data
 
 # Ensure the correct path to the 'data' directory
-from trading_strategy import DailyTradingStrategy
+from stock_candidates_analysis import DailyTradingStrategy
 
 # Database connection details
 dbname = st.secrets["db_name_postgres"]
@@ -34,6 +34,8 @@ if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "Login"
 if 'show_login' not in st.session_state:
     st.session_state['show_login'] = False
+if 'instrument' not in st.session_state:
+    st.session_state['instrument'] = "index"
 
 def login():
     st.header("Member Login")
