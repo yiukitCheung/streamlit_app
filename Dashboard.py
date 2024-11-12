@@ -744,7 +744,3 @@ def user_dashboard():
 
     # Display all content
     display_user_dashboard_content(cur_alert_dict=current_alerts_dict)
-
-def main():
-    user_dashboard()
-
