@@ -6,16 +6,16 @@ import streamlit as st
 import plotly.subplots as sp
 
 # MongoDB Configuration
-DB_NAME = st.secrets['db_name']
-PROCESSED_COLLECTION_NAME = st.secrets.processed_collection_name
-ALERT_COLLECTION_NAME = st.secrets.alert_collection_name
-def connect_to_mongo(db_name=DB_NAME):
-    client = pymongo.MongoClient(**st.secrets["mongo"])
-    return client[db_name]
+DB_NAME = st.secrets['mongo']['db_name']
+PROCESSED_COLLECTION_NAME = st.secrets['mongo']['processed_collection_name']
+ALERT_COLLECTION_NAME = st.secrets['mongo']['alert_collection_name']
+def connect_to_mongo():
+    client = pymongo.MongoClient(st.secrets["mongo"]["host"])
+    return client[DB_NAME]
 
 
 def fetch_stock_data(collection, stock_symbol, interval):
-    warehouse_interval = st.secrets.warehouse_interval
+    warehouse_interval = st.secrets['mongo']['warehouse_interval']
     if not warehouse_interval:
         raise ValueError("warehouse_interval is empty in st.secrets")
     return pd.DataFrame(list(collection.find({"symbol": stock_symbol,
@@ -23,7 +23,7 @@ def fetch_stock_data(collection, stock_symbol, interval):
                                             "instrument": "equity"}, 
                                             {"_id": 0}))).sort_values(by=['date'])
 
-def fetch_alert_data(collection, stock_symbol,interval):
+def fetch_alert_data(collection, stock_symbol, interval):
     if not interval:
         raise ValueError("warehouse_interval is empty in st.secrets")
         # Fetch the data from MongoDB and convert to DataFrame
@@ -48,7 +48,7 @@ def fetch_alert_data(collection, stock_symbol,interval):
 
     return data
 
-def create_figure(filtered_df):
+def candle_chart(filtered_df):
 
     row_height = [1]
     row = 1
@@ -79,94 +79,126 @@ def create_figure(filtered_df):
     fig.update_xaxes(range=[start_date, end_date],title_text="Date", row=1, col=1)
     fig.update_yaxes(range=[min_price, max_price], title_text="Price", row=1, col=1)
 
-    
-    fig.update_layout(xaxis_rangeslider_visible=False, autosize=False, showlegend=False, height=1000, width=1200)
+    fig.update_layout(xaxis_rangeslider_visible=False, autosize=False, showlegend=False, margin=dict(t=10, b=10, l=10, r=10))
 
     return fig
+
+def fundemental_chart(filtered_df):
+    st.markdown("<h3 style='text-align: center;'>Fundamentals Analysis</h3>", unsafe_allow_html=True)
 
 def display_alerts(alert_df):
     # Display Alert
     today_alert = alert_df[alert_df['date'] == alert_df['date'].max()]
+    # Create columns for the three alert types
+    col1, col2, col3 = st.columns(3)
     
     # Function to map alert values to color and message
     def get_alert_color_and_message(alert_type, value):
         alert_mappings = {
             'velocity_alert': {
-                'velocity_maintained': ('green', 'Velocity Maintained'),
-                'velocity_weak': ('orange', 'Velocity Weakened'),
-                'velocity_loss': ('red', 'Velocity Loss'),
-                'velocity_negotiating': ('orange', 'Velocity Negotiating')
+                'velocity_maintained': ('green', 'Maintained'),
+                'velocity_weak': ('orange', 'Weakened'), 
+                'velocity_loss': ('red', 'Loss'),
+                'velocity_negotiating': ('orange', 'Negotiating')
             },
             'touch_type': {
                 'support': ('green', 'Support'),
-                'resistance': ('red', 'Resistance')
+                'resistance': ('red', 'Resistance'),
+                
             },
             'momentum_alert': {
                 "accelerated": ('green', 'Accelerating'),
-                'decelerated': ('red', 'Decelerating')
+                'decelerated': ('red', 'Decelerating'),
+                
             }
         }
-    
+        
         # Default to grey color if value or alert type is not recognized
-        color, message = alert_mappings.get(alert_type, {}).get(value, ('grey', 'Unknown Alert'))
+        color, message = alert_mappings.get(alert_type, {}).get(value, ('grey', 'No Alert'))
         return color, message
-    
-    # Main function to display alerts
-    def plot_alert(current_alert):
-        # Loop through the relevant alert columns (e.g., velocity, candle)
-        for column in ['velocity_alert', 'touch_type', 'momentum_alert']:
-            alert_value = current_alert[column].values[0] if not current_alert[column].empty else None
-            if pd.notna(alert_value):  # Only display if alert has a valid value
-                alert_color, alert_message = get_alert_color_and_message(column, alert_value)
-            
-                # Display the alert with color-coded dot and message
+
+    # Display alerts in columns
+    with col1:
+        st.markdown("<h3 style='text-align: center;'>Up Trend Strength</h3>", unsafe_allow_html=True)
+        if 'velocity_alert' in today_alert.columns and not today_alert['velocity_alert'].empty:
+            alert_value = today_alert['velocity_alert'].values[0]
+            if pd.notna(alert_value):
+                color, message = get_alert_color_and_message('velocity_alert', alert_value)
                 st.markdown(f"""
                     <div style="text-align: center;">
-                    <span style="font-size:50px; color:{alert_color}">●</span>
-                    <div style="font-size:16px; font-weight:bold; margin-top:10px; color:{alert_color};">{alert_message}</div>
+                        <span style="font-size:50px; color:{color}">●</span>
+                        <div style="font-size:16px; font-weight:bold; margin-top:10px; color:{color};">{message}</div>
                     </div>
                     """, unsafe_allow_html=True)
-                
-    # Display the alerts            
-    plot_alert(today_alert)
+    
+    with col2:
+        st.markdown("<h3 style='text-align: center;'>Support/Resistance</h3>", unsafe_allow_html=True)
+        if 'touch_type' in today_alert.columns:
+            alert_value = today_alert['touch_type'].values[0]
+            
+            color, message = get_alert_color_and_message('touch_type', alert_value)
+
+            st.markdown(f"""
+                <div style="text-align: center;">
+                    <span style="font-size:50px; color:{color}">●</span>
+                    <div style="font-size:16px; font-weight:bold; margin-top:10px; color:{color};">{message}</div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("<h3 style='text-align: center;'>Momentum</h3>", unsafe_allow_html=True)
+        if 'momentum_alert' in today_alert.columns:
+            alert_value = today_alert['momentum_alert'].values[0]
+            color, message = get_alert_color_and_message('momentum_alert', alert_value)
+            st.markdown(f"""
+                <div style="text-align: center;">
+                    <span style="font-size:50px; color:{color}">●</span>
+                    <div style="font-size:16px; font-weight:bold; margin-top:10px; color:{color};">{message}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 def static_analysis_page(processed_col, alert_col):
     # Set the page title and layout
-    st.markdown("<h1 style='text-align: center;'>Long Term Alert Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Long Term Alert Dashboard</h2>", unsafe_allow_html=True)
+    chart_config_container = st.container()
+    with chart_config_container:
+        # Reduce space around selection components
+        st.markdown("""
+            <style>
+            .css-1y0tads {padding-top: 0px; padding-bottom: 0px;}
+            </style>
+            """, unsafe_allow_html=True)
+        
+        symbol_col, interval_col = st.columns(2)
+        with symbol_col:
+            # Create a dropdown to select the stock
+            stock_options = sorted(processed_col.find({'instrument':'equity'}).distinct("symbol"))
+            stock_selector = st.selectbox('Select Stock', options=stock_options, index=0)
+        with interval_col:
+            # Create a dropdown to select the interval
+            default_interval = '1D'
+            interval_selector = st.selectbox('Optimal Interval/ Select Interval',
+                                                options=sorted(processed_col.distinct("interval")),
+                                                index=sorted(processed_col.distinct("interval")). \
+                                                index(default_interval) if default_interval in processed_col.distinct("interval")\
+                                                else 0)
     
-    # Add a sidebar
-    # Create a dropdown to select the stock
-    
-    stock_options = sorted(processed_col.find({'instrument':'equity'}).distinct("symbol"))
-    stock_selector = st.sidebar.selectbox('Select Stock', options=stock_options, index=0)
-    # Create a dropdown to select the interval
-    default_interval = '1D'
-    interval_selector = st.sidebar.selectbox('Optimal Interval/ Select Interval',
-                                            options=sorted(processed_col.distinct("interval")),
-                                            index=sorted(processed_col.distinct("interval")). \
-                                            index(default_interval) if default_interval in processed_col.distinct("interval")\
-                                            else 0)
-
-    alert_df = fetch_alert_data(alert_col, stock_selector, interval_selector)
-
-    # Add an update button
-    if st.sidebar.button("Update Data"):
-        # fetch the latest data when the button is clicked
+    chart_container = st.container()
+    with chart_container:
+        alert_df = fetch_alert_data(alert_col, stock_selector, interval_selector)
         processed_df = fetch_stock_data(processed_col, stock_selector, interval_selector)
-        st.success("Data updated successfully!")
-    else:
-        # Display the existing data if the button is not clicked
-        processed_df = fetch_stock_data(processed_col, stock_selector, interval_selector)
-    # Create the figure
-    fig = create_figure(processed_df)
+        
+        candlesticks_chart, fundmentals_chart = st.columns([3, 1])
+        with candlesticks_chart:
+            # Create the figure
+            fig = candle_chart(processed_df)
+            st.plotly_chart(fig, use_container_width=True)
 
-    col1, col2 = st.columns([5, 1], vertical_alignment="top")
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
+        with fundmentals_chart:
+            fundemental_chart(processed_df)
 
-    with col2:
-        # Display the alerts
-        display_alerts(alert_df)
+    # Display the alerts
+    display_alerts(alert_df)
 
 def long_term_dashboard():
     # Connect to MongoDB and fetch the processed collection

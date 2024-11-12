@@ -1,7 +1,8 @@
 import streamlit as st
 from pymongo import MongoClient
-from dependencies import init_postgres, verify_user, sign_up_process
-from Dashboard import user_dashboard
+from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign_up_process
+from add_portfolio import add_portfolio
+from dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
 
@@ -9,18 +10,18 @@ from short_term import display_live_data
 from stock_candidates_analysis import DailyTradingStrategy
 
 # Database connection details
-dbname = st.secrets["db_name_postgres"]
-user = st.secrets["user"]
-host = st.secrets['host']
-port = st.secrets['port']
+dbname = st.secrets["postgres"]["db_name_postgres"]
+user = st.secrets["postgres"]["user"]
+host = st.secrets['postgres']['host']
+port = st.secrets['postgres']['port']
 
 # MongoDB Config
-URL = st.secrets['mongo'].host
-DB_NAME = st.secrets.db_name
-WAREHOUSE_INTERVAL = st.secrets.warehouse_interval
-PROCESSED_COLLECTION = st.secrets.processed_collection_name
-ALERT_COLLECTION = st.secrets.alert_collection_name
-SANDBOX_COLLECTION = st.secrets.alert_sandbox_name
+URL = st.secrets['mongo']['host']
+DB_NAME = st.secrets['mongo']['db_name']
+WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
+PROCESSED_COLLECTION = st.secrets['mongo']['processed_collection_name']
+ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
+SANDBOX_COLLECTION = st.secrets['mongo']['alert_sandbox_name']
 
 # Fetch Sandbox testing results
 def fetch_sandbox_records():
@@ -66,6 +67,7 @@ def logout():
 def main():
     st.set_page_config(layout="wide")
     init_postgres()
+    init_mongodb_portfolio()
     sand_box_results = fetch_sandbox_records()
 
     # Sidebar navigation buttons
@@ -74,6 +76,7 @@ def main():
         st.sidebar.button("User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
         st.sidebar.button("Long Term Analysis", on_click=lambda: st.session_state.update(current_page="Long Term"))
         st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
+        st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
     elif st.session_state['current_page'] == "Sign Up":
         st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
 
@@ -174,6 +177,8 @@ def main():
             long_term_dashboard()
         elif st.session_state['current_page'] == "Short Term":
             display_live_data()
+        elif st.session_state['current_page'] == "Portfolio":
+            add_portfolio()
 
 if __name__ == "__main__":
     main()

@@ -3,20 +3,16 @@ import pymongo
 import plotly.graph_objects as go
 import streamlit as st
 import time
+from streamlit_autorefresh import st_autorefresh
 
 # MongoDB Configuration
-DB_NAME = st.secrets['db_name']
-PROCESSED_COLLECTION_NAME = st.secrets.processed_collection_name
-STREAMING_COLLECTIONS = [f'{interval}_stock_datastream' for interval in st.secrets.streaming_interval]
-LIVE_ALERT_COLLECTION = st.secrets.live
-BATCH_ALERT_COLLECTION = st.secrets.batch
-DESIRED_STREAMING_INTERVAL = st.secrets.streaming_interval
-WINDOW_SIZE = st.secrets.window_size
-
-
-def initialize_mongo_client(db_name=DB_NAME):
-    client = pymongo.MongoClient(**st.secrets["mongo"])
-    return client[db_name]
+DB_NAME = st.secrets['mongo']['db_name']
+PROCESSED_COLLECTION_NAME = st.secrets['mongo']['processed_collection_name']
+STREAMING_COLLECTIONS = [f'{interval}_stock_datastream' for interval in st.secrets['mongo']['streaming_interval']]
+LIVE_ALERT_COLLECTION = st.secrets['mongo']['live']
+BATCH_ALERT_COLLECTION = st.secrets['mongo']['batch']
+DESIRED_STREAMING_INTERVAL = st.secrets['mongo']['streaming_interval']
+WINDOW_SIZE = st.secrets['mongo']['window_size']
 
 
 @st.cache_data
@@ -190,10 +186,10 @@ def plot_live_page(db, stock_selector, interval):
     selected_topic = f"{interval}_stock_datastream"
     filtered_query = fetch_data(db, selected_topic, stock_selector)
     filtered_live_alerts_query = fetch_alerts(db, LIVE_ALERT_COLLECTION, stock_selector, interval,
-                                              date=get_current_date(),
-                                              alert_type=["bullish_engulfer", "bearish_engulfer", "bullish_382"])
+                                            date=get_current_date(),
+                                            alert_type=["bullish_engulfer", "bearish_engulfer", "bullish_382"])
     filtered_batch_alerts_query = fetch_alerts(db, BATCH_ALERT_COLLECTION, stock_selector, interval,
-                                               date=get_current_date())
+                                            date=get_current_date())
 
     # Convert the query results to a DataFrame
     filtered_df = pd.DataFrame(list(filtered_query))
@@ -298,21 +294,23 @@ def plot_live_page(db, stock_selector, interval):
 
 
 def display_live_data():
+    def initialize_mongo_client():
+        client = pymongo.MongoClient(st.secrets["mongo"]["host"])
+        return client[DB_NAME]
+
     # Initialize MongoDB client
     db = initialize_mongo_client()
     # Get the list of stocks
     options = sorted(db[STREAMING_COLLECTIONS[0]].find({'instrument':'equity'}).distinct("symbol"))
     intervals = DESIRED_STREAMING_INTERVAL
     # Streamlit UI
-    st.sidebar.header("Selector")
-    st.markdown("<h1 style='text-align: center;'>Short Term Alerts Dashboard</h1>", unsafe_allow_html=True)
-    stock_selector = st.sidebar.selectbox('Select Stock', options=options, index=len(options) - 1)
-    intervals_selector = st.sidebar.selectbox('Select Interval', options=intervals, index=len(intervals) - 1)
-    # Create a placeholder for the chart
-    chart_placeholder = st.empty()
+    st.markdown("<h2 style='text-align: center;'>Short Term Alerts Dashboard</h2>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        stock_selector = st.selectbox('Select Stock', options=options, index=len(options) - 1)
+    with col2:
+        intervals_selector = st.selectbox('Select Interval', options=intervals, index=len(intervals) - 1)
     # Continuously update the chart every minute
-    while True:
-        with chart_placeholder.container():
-            plot_live_page(db, stock_selector, intervals_selector)
-        # Refresh the data every 60 seconds
-        time.sleep(60)
+    st_autorefresh(interval=60000, limit=None)
+    plot_live_page(db, stock_selector, intervals_selector)

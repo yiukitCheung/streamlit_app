@@ -1,20 +1,20 @@
 import streamlit as st
 import psycopg2
 import os, re, hashlib
+from pymongo import MongoClient
 from twilio.rest import Client
-from dotenv import load_dotenv
-
-# load_dotenv()
 
 # Database connection details
-dbname = st.secrets["db_name_postgres"]
-user = st.secrets["user"]
-host = st.secrets['host']
-port = st.secrets['port']
-key = st.secrets['password']
+dbname = st.secrets["postgres"]["db_name_postgres"]
+user = st.secrets["postgres"]["user"]
+host = st.secrets['postgres']['host']
+port = st.secrets['postgres']['port']
+key = st.secrets['postgres']['password']
 
-# account_sid = os.getenv('ACC_SID')
-# auth_token = os.getenv('AUTH_TOKEN')
+mongo_uri = st.secrets['mongo']['host']
+db_name = st.secrets['mongo']['db_name']
+portfolio_collection_name = st.secrets['mongo']['portfolio_collection_name']
+sandbox_collection_name = st.secrets['mongo']['sandbox_collection_name']
 
 account_sid = st.secrets['twilio']['ACC_SID']
 auth_token = st.secrets['twilio']['AUTH_TOKEN']
@@ -24,6 +24,16 @@ client = Client(account_sid, auth_token)
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+def init_mongodb_portfolio():
+    try:
+        client = MongoClient(mongo_uri)
+        db = client[db_name]
+        if portfolio_collection_name not in db.list_collection_names():
+            db.create_collection(portfolio_collection_name)
+    except Exception as e:
+        st.error(f"Error initializing MongoDB portfolio: {e}")
+        return None
+    
 def init_postgres():
     try:
         conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
