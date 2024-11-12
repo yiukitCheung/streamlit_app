@@ -2,7 +2,7 @@ import streamlit as st
 from pymongo import MongoClient
 from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign_up_process
 from add_portfolio import add_portfolio
-from dashboard import user_dashboard
+from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
 
