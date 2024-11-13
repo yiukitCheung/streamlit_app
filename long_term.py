@@ -4,49 +4,127 @@ import pymongo
 import plotly.graph_objects as go
 import streamlit as st
 import plotly.subplots as sp
+import io
+import redis
+import time
 
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 PROCESSED_COLLECTION_NAME = st.secrets['mongo']['processed_collection_name']
 ALERT_COLLECTION_NAME = st.secrets['mongo']['alert_collection_name']
+
+# Redis Configuration
+REDIS_HOST = st.secrets['redis']['host']
+REDIS_PORT = st.secrets['redis']['port']
+REDIS_PASSWORD = st.secrets['redis']['password']
+
+def initialize_redis():
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+
 def connect_to_mongo():
     client = pymongo.MongoClient(st.secrets["mongo"]["host"])
     return client[DB_NAME]
 
-
-def fetch_stock_data(collection, stock_symbol, interval):
+def fetch_stock_data(redis_client, collection, stock_symbol, interval):
+    start_time = time.time()
     warehouse_interval = st.secrets['mongo']['warehouse_interval']
     if not warehouse_interval:
         raise ValueError("warehouse_interval is empty in st.secrets")
-    return pd.DataFrame(list(collection.find({"symbol": stock_symbol,
-                                            "interval": interval,
-                                            "instrument": "equity"}, 
-                                            {"_id": 0}))).sort_values(by=['date'])
 
-def fetch_alert_data(collection, stock_symbol, interval):
-    if not interval:
-        raise ValueError("warehouse_interval is empty in st.secrets")
-        # Fetch the data from MongoDB and convert to DataFrame
-    data = list(collection.find({'symbol': stock_symbol, 'interval': interval, 'instrument': 'equity'}, {'_id': 0}))
+    # Define Redis key based on stock symbol and interval
+    redis_key = f"stock_data:{stock_symbol}:{interval}"
 
-    # Extract the alerts from the alert_dict
-    for entry in data:
-        if 'alerts' in entry and 'momentum_alert' in entry['alerts']:
-            entry['momentum_alert'] = entry['alerts']['momentum_alert']['alert_type']
-        if 'alerts' in entry and "velocity_alert" in entry['alerts']:
-            entry['velocity_alert'] = entry['alerts']['velocity_alert']['alert_type']
-        if 'alerts' in entry and '169ema_touched' in entry['alerts']:
-            entry['touch_type'] = entry['alerts']['169ema_touched']['type']
-        elif 'alerts' in entry and '13ema_touched' in entry['alerts']:
-            entry['touch_type'] = entry['alerts']['13ema_touched']['type']
+    try:
+        # Check if data is cached in Redis and deserialize in one step
+        if cached_data := redis_client.get(redis_key):
+            data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
         else:
-            entry['touch_type'] = np.nan
+            # Use MongoDB projection and sorting at database level
+            cursor = collection.find(
+                {
+                    "symbol": stock_symbol,
+                    "interval": interval, 
+                    "instrument": "equity",
+                    "date": {"$gte": pd.Timestamp.now() - pd.Timedelta(days=1825)}
+                },
+                {"_id": 0}
+            ).sort("date", 1)
+            
+            # Create DataFrame directly from cursor
+            data = pd.DataFrame(cursor)
+            
+            # Cache the result with compression
+            redis_client.setex(
+                redis_key,
+                300,
+                data.to_json(orient="records", date_format='iso')
+            )
 
-    # Convert the alert_dict to a DataFrame
-    data = pd.DataFrame(data).sort_values(by=['date'])
-    data = data.drop(columns=['alerts'])
+        if st.session_state.get('debug'):
+            end_time = time.time()
+            st.write(f"Time taken to fetch data: {end_time - start_time:.2f} seconds")
+            
+        return data
 
-    return data
+    except Exception as e:
+        st.error(f"Error fetching data: {str(e)}")
+        return pd.DataFrame()  # Return empty DataFrame on error
+
+def fetch_alert_data(redis_client, collection, stock_symbol, interval):
+    start_time = time.time()
+    redis_key = f"alert_data:{stock_symbol}:{interval}"
+    
+    # Try to get cached data from Redis
+    try:
+        cached_data = redis_client.get(redis_key)
+        if cached_data:
+            return pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+    except Exception as e:
+        st.warning(f"Redis error: {str(e)}")
+    
+    # Fetch and process MongoDB data using aggregation pipeline
+    pipeline = [
+        {"$match": {"symbol": stock_symbol, "interval": interval, "instrument": "equity"}},
+        {"$project": {
+            "_id": 0,
+            "date": 1,
+            "symbol": 1,
+            "interval": 1,
+            "instrument": 1,
+            "open": 1, 
+            "high": 1,
+            "low": 1,
+            "close": 1,
+            "volume": 1,
+            "momentum_alert": {"$ifNull": [{"$getField": {"field": "alert_type", "input": {"$getField": {"field": "momentum_alert", "input": "$alerts"}}}}, None]},
+            "velocity_alert": {"$ifNull": [{"$getField": {"field": "alert_type", "input": {"$getField": {"field": "velocity_alert", "input": "$alerts"}}}}, None]},
+            "touch_type": {
+                "$cond": {
+                    "if": {"$ifNull": [{"$getField": {"field": "169ema_touched", "input": "$alerts"}}, False]},
+                    "then": {"$getField": {"field": "type", "input": {"$getField": {"field": "169ema_touched", "input": "$alerts"}}}},
+                    "else": {
+                        "$cond": {
+                            "if": {"$ifNull": [{"$getField": {"field": "13ema_touched", "input": "$alerts"}}, False]},
+                            "then": {"$getField": {"field": "type", "input": {"$getField": {"field": "13ema_touched", "input": "$alerts"}}}},
+                            "else": None
+                        }
+                    }
+                }
+            }
+        }}
+    ]
+    
+    data = list(collection.aggregate(pipeline))
+    df = pd.DataFrame(data).sort_values(by=['date'])
+    
+    # Cache in Redis
+    try:
+        redis_client.setex(redis_key, 120, df.to_json(orient="records"))
+    except Exception as e:
+        st.warning(f"Redis caching error: {str(e)}")
+            
+    return df
+
 
 def candle_chart(filtered_df):
 
@@ -157,7 +235,7 @@ def display_alerts(alert_df):
                 </div>
                 """, unsafe_allow_html=True)
 
-def static_analysis_page(processed_col, alert_col):
+def static_analysis_page(processed_col, alert_col, redis_client):
     # Set the page title and layout
     st.markdown("<h2 style='text-align: center;'>Long Term Alert Dashboard</h2>", unsafe_allow_html=True)
     chart_config_container = st.container()
@@ -185,8 +263,8 @@ def static_analysis_page(processed_col, alert_col):
     
     chart_container = st.container()
     with chart_container:
-        alert_df = fetch_alert_data(alert_col, stock_selector, interval_selector)
-        processed_df = fetch_stock_data(processed_col, stock_selector, interval_selector)
+        with st.spinner("Loading data..."):
+            processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, interval_selector)
         
         candlesticks_chart, fundmentals_chart = st.columns([3, 1])
         with candlesticks_chart:
@@ -198,10 +276,14 @@ def static_analysis_page(processed_col, alert_col):
             fundemental_chart(processed_df)
 
     # Display the alerts
+    with st.spinner("Loading data..."):
+        alert_df = fetch_alert_data(redis_client, alert_col, stock_selector, interval_selector)
+        
     display_alerts(alert_df)
 
 def long_term_dashboard():
+    redis_client = initialize_redis()
     # Connect to MongoDB and fetch the processed collection
     processed_collection = connect_to_mongo()[PROCESSED_COLLECTION_NAME]
     alert_collection = connect_to_mongo()[ALERT_COLLECTION_NAME]
-    static_analysis_page(processed_collection, alert_collection)
+    static_analysis_page(processed_collection, alert_collection, redis_client)

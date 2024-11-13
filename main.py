@@ -5,7 +5,7 @@ from add_portfolio import add_portfolio
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
-
+import redis
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]
@@ -19,6 +19,14 @@ WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
 PROCESSED_COLLECTION = st.secrets['mongo']['processed_collection_name']
 ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
 SANDBOX_COLLECTION = st.secrets['mongo']['alert_sandbox_name']
+
+# Redis Configuration
+REDIS_HOST = st.secrets['redis']['host']
+REDIS_PORT = st.secrets['redis']['port']
+REDIS_PASSWORD = st.secrets['redis']['password']
+
+def initialize_redis():
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
 # Fetch Sandbox testing results
 def fetch_sandbox_records():
