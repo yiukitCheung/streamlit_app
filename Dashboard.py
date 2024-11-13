@@ -79,7 +79,6 @@ def fetch_data(instrument, interval):
     
     return pd.DataFrame(list(cursor))
 
-@st.cache_data
 def fetch_alert_data(instrument, symbol):
     
     collection_obj = initialize_mongo_client()[DB_NAME][ALERT_COLLECTION]
@@ -88,7 +87,6 @@ def fetch_alert_data(instrument, symbol):
     
     return pd.DataFrame(list(cursor))
 
-@st.cache_data
 def fetch_return_data(instrument):
     if not WAREHOUSE_INTERVAL:
         raise ValueError("warehouse_interval is empty in st.secrets")
@@ -131,6 +129,7 @@ def find_alert_symbols(data_dict: list, alert_type: str):
             results_set.update(entry[alert_type])  # Add all symbols in the array to the set
     return list(results_set)
 
+@st.cache_data
 def find_velocity_alert(data_dict: list, alert: int):
     results_set = {
         entry['symbol']
@@ -509,171 +508,82 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         """, unsafe_allow_html=True)
             
     alert_container = st.container()
+    
     with alert_container:           
-        st.markdown("""
-            <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                Opportunity Alerts
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown("""
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                <div style="text-align: center; font-size: 18px; font-weight: bold; width: 33%;">Short Term</div>
-                <div style="text-align: center; font-size: 18px; font-weight: bold; width: 33%;">Mid Term</div>
-                <div style="text-align: center; font-size: 18px; font-weight: bold; width: 33%;">Long Term</div>
-            </div>
-        """, unsafe_allow_html=True)
+        # Display header and section titles
+        def display_headers():
+            st.markdown("""
+                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                    Opportunity Alerts
+                </div>
+            """, unsafe_allow_html=True)
+            st.markdown("""
+                <div style="display: flex; justify-content: space-between;">
+                    <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Short Term</div>
+                    <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Mid Term</div>
+                    <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Long Term</div>
+                </div>
+            """, unsafe_allow_html=True)
 
+        # Display alert section with title and results
+        def display_alert_section(title, results, badge_color):
+            st.markdown(f"""
+                <div style="text-align: center; font-size: 18px; font-weight: bold; color: {badge_color};">
+                    {title}
+                </div>
+            """, unsafe_allow_html=True)
+
+            if not results:
+                st.markdown("""
+                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+                        No Opportunity found today, bored... 😴
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
+                badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"
+                
+                st.markdown(f"""
+                    <style>
+                        .{container_class} {{
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 10px;
+                            min-height: 10px;
+                            align-items: center;
+                            justify-content: center;
+                        }}
+                        .{badge_class} {{
+                            background-color: {badge_color} !important;
+                            color: white;
+                            padding: 8px 12px;
+                            border-radius: 5px;
+                            font-size: 16px;
+                            text-align: center;
+                        }}
+                    </style>
+                """, unsafe_allow_html=True)
+
+                st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
+                for symbol in results:
+                    st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        # Main display logic
+        display_headers()
         col1, col2, col3 = st.columns(3)
 
-        # Short Term Column
-        with col1:
-            results = find_alert_symbols(cur_alert_dict, 'accelerating')
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #4CAF50;">
-                    Accelerating 
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <style>
-                        .buy-container {
-                            display: flex;
-                            flex-wrap: wrap;
-                            gap: 10px;
-                        }
-                        .buy-badge {
-                            background-color: #4CAF50 !important;
-                            color: white;
-                            padding: 8px 12px;
-                            border-radius: 5px;
-                            font-size: 16px;
-                            text-align: center;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
+        with col1:  # Short Term
+            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'accelerating'), "#4CAF50")
+            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "main_accumulating"), "#FFA500")
 
-                st.markdown('<div class="buy-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+        with col2:  # Mid Term
+            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'long_accelerating'), "#4CAF50")
+            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "long_main_accumulating"), "#FFA500")
 
-            results = find_alert_symbols(cur_alert_dict, "main_accumulating")
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #FFA500;">
-                    Uptrend Position Building
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <style>
-                        .sell-container {
-                            display: flex;
-                            flex-wrap: wrap;
-                            gap: 10px;
-                        }
-                        .sell-badge {
-                            background-color: #FFA500 !important;
-                            color: white;
-                            padding: 8px 12px;
-                            border-radius: 5px;
-                            font-size: 16px;
-                            text-align: center;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-
-                st.markdown('<div class="sell-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-        # Mid Term Column
-        with col2:
-            results = find_alert_symbols(cur_alert_dict, 'long_accelerating')
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #4CAF50;">
-                    Accelerating 
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="buy-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            results = find_alert_symbols(cur_alert_dict, "long_main_accumulating")
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #FFA500;">
-                    Uptrend Position Building
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="sell-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-        # Long Term Column
-        with col3:
-            results = find_alert_symbols(cur_alert_dict, 'ext_long_accelerating')
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #4CAF50;">
-                    Accelerating 
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="buy-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="buy-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            results = find_alert_symbols(cur_alert_dict, "ext_accumulating")
-            st.markdown("""
-                <div style="text-align: center; font-size: 18px; font-weight: bold; color: #FFA500;">
-                    Uptrend Position Building
-                </div>
-            """, unsafe_allow_html=True)
-            if not results:
-                st.markdown("""
-                    <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey;">
-                        No Opportunity found today, bored... 😴
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="sell-container">', unsafe_allow_html=True)
-                for symbol in results:
-                    st.markdown(f'<div class="sell-badge">{symbol}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+        with col3:  # Long Term
+            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'ext_long_accelerating'), "#4CAF50")
+            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "ext_accumulating"), "#FFA500")
 
 def user_dashboard():
     # Welcom message
