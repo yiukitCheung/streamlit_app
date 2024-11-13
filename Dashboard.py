@@ -7,8 +7,9 @@ import numpy as np
 from datetime import datetime
 from long_term import long_term_dashboard
 # Ensure the correct path to the 'data' directory
-from stock_candidates_analysis import DailyTradingStrategy, Pick_Stock
+from stock_candidates_analysis import DailyTradingStrategy
 from add_portfolio import existing_portfolio
+from config.mongdb_config import load_mongo_config
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
@@ -38,41 +39,36 @@ def initialize_mongo_client():
     client = MongoClient(st.secrets["mongo"]["host"])
     return client
 
-def analyze_strategy_results(results):
+@st.cache_data
+def analyze_strategy_results():
+    # Fetch the results from MongoDB (simulate this for now)
+    results_df = pd.DataFrame(list(initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION].find({})))
 
-    # Separate winning and losing trades based on final_profit_loss_pct
-    profits = [trade['final_profit_loss_pct'] for trade in results if trade['final_profit_loss_pct'] > 0]
-    losses = [trade['final_profit_loss_pct'] for trade in results if trade['final_profit_loss_pct'] <= 0]
-    
+    # Ensure the profit/loss column is used correctly and already in decimal format
+    results_df['profit_loss_pct'] = results_df['final_profit_loss_pct']  # Adjusted column name
+
+    # Separate winning and losing trades based on profit_loss_pct
+    profits = results_df[results_df['profit_loss_pct'] > 0]['profit_loss_pct']
+    losses = results_df[results_df['profit_loss_pct'] <= 0]['profit_loss_pct']
+
     # Calculate win rate
-    total_trades = len(results)
+    total_trades = len(results_df)
     win_trades = len(profits)
     win_rate = win_trades / total_trades if total_trades > 0 else 0
 
     # Calculate average profit and average loss
-    avg_profit = sum(profits) / len(profits) if profits else 0
-    avg_loss = sum(losses) / len(losses) if losses else 0
-
-    # Calculate maximum drawdown (the largest peak-to-trough decline)
-    cumulative_returns = [1 + trade['final_profit_loss_pct'] for trade in results]
-    peak = cumulative_returns[0]
-    max_drawdown = 0
-
-    for value in cumulative_returns:
-        if value > peak:
-            peak = value
-        drawdown = (peak - value) / peak
-        if drawdown > max_drawdown:
-            max_drawdown = drawdown
+    avg_profit = profits.mean() if not profits.empty else 0
+    avg_loss = losses.mean() if not losses.empty else 0
 
     # Return results in a dictionary
     return {
         "win_rate": round(win_rate * 100, 2),  # Convert to percentage
         "avg_profit": round(avg_profit * 100, 2),  # Convert to percentage
         "avg_loss": round(avg_loss * 100, 2),  # Convert to percentage
-        "max_drawdown": round(max_drawdown * 100, 2)  # Convert to percentage
+        "best_trade": round(profits.max() * 100, 2),  # Convert to percentage
+        "worst_trade": round(losses.min() * 100, 2),  # Convert to percentage
+        "total_trades": total_trades
     }
-    
     
 @st.cache_data
 def fetch_data(instrument, interval):
@@ -683,9 +679,8 @@ def user_dashboard():
     # Welcom message
     username = (st.session_state['username']).capitalize()
     # Scrolling message of sandbox testing results
-    sandbox_results = initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION]
-    sandbox_results_list = list(sandbox_results.find({}))
-    scrolling_message = analyze_strategy_results(sandbox_results_list)
+
+    scrolling_message = analyze_strategy_results()
     
     # Prepare the scrolling message with the results
     st.markdown("""
@@ -722,7 +717,10 @@ def user_dashboard():
         f'Win Rate: <span style="color: {"#4CAF50" if scrolling_message["win_rate"] > 50 else "#FF5733"}">{scrolling_message["win_rate"]}%</span> | '
         f'Average Profit: <span style="color: #4CAF50">{scrolling_message["avg_profit"]}%</span> | '
         f'Average Loss: <span style="color: #FF5733">{scrolling_message["avg_loss"]}%</span> | '
-        f'Maximum Drawdown: <span style="color: {"#FF5733" if scrolling_message["max_drawdown"] > 20 else "#FFA500"}">{scrolling_message["max_drawdown"]}%</span>'
+        f'Best Trade: <span style="color: #4CAF50">{scrolling_message["best_trade"]}%</span> | '
+        f'Worst Trade: <span style="color: #FF5733">{scrolling_message["worst_trade"]}%</span> | '
+        f'Total Trades: <span style="color: {"#FF5733" if scrolling_message["total_trades"] > 30 else "#FFA500"}">{scrolling_message["total_trades"]}</span>'
+
     )
     # Display scrolling marquee in Streamlit
     st.markdown(

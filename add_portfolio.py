@@ -63,6 +63,7 @@ def delete_from_portfolio(symbol: str, username: str):
             {'username': username}, 
             {'$unset': {f'portfolio.{symbol}': ""}}
         )
+        st.success("✅ Successfully Deleted from Portfolio!")
     else:
         st.warning(f"No portfolio found for {username}.")
     
@@ -129,7 +130,6 @@ def add_portfolio():
         stock_to_delete = st.text_input("Enter the stock to delete from portfolio:")
         if st.button("🗑️ Delete from Portfolio", use_container_width=True):
             delete_from_portfolio(stock_to_delete, st.session_state['username'])
-            st.success("✅ Successfully Deleted from Portfolio!")
 
     else:
         username = st.session_state['username']
@@ -158,4 +158,3 @@ def add_portfolio():
         stock_to_delete = st.text_input("Enter the stock to delete from portfolio:")
         if st.button("🗑️ Delete from Portfolio", use_container_width=True):
             delete_from_portfolio(stock_to_delete, st.session_state['username'])
-            st.success("✅ Successfully Deleted from Portfolio!")

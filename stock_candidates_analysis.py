@@ -3,6 +3,7 @@ import numpy as np
 from pymongo import MongoClient
 from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
+import logging
 import os, sys
 # Add project root to sys.path dynamically
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
@@ -420,13 +421,14 @@ class ComputeAcceleratingProfits:
         self.insert_results(results_df)
 
 class DailyTradingStrategy:
+
     def __init__(self, mongo_config, start_date=None, sandbox_mode=False, initial_capital=10000, aggressive_split=1.0):
         self.protected = None
         self.peak_profit_pct = None
         self.peak_profit = None
         self.trades = []
         self.current_trade = {"conservative": {}, "aggressive": {}}
-        self.start_date = start_date if sandbox_mode else '2024-01-01'
+        self.start_date = start_date if sandbox_mode else '2020-01-01'
 
         self.aggressive_capital = initial_capital * aggressive_split
         self.conservative_capital = initial_capital * (1.0 - aggressive_split)
@@ -442,6 +444,7 @@ class DailyTradingStrategy:
         self.stock_candidates = pd.DataFrame(list(self.db[self.mongo_config['candidates_collection_name']['long_term']] \
                                                 .find({'date': {'$gte': pd.to_datetime(self.start_date)}},
                                                         {'_id': 0})))
+        
         # Load data and alerts
         self.df = pd.DataFrame(list(self.data_collection. \
                                     find({'date': {'$gte': pd.to_datetime(self.start_date)}},
@@ -499,8 +502,6 @@ class DailyTradingStrategy:
                     tracked_profit_pct = (tracked_profit_loss - self.aggressive_capital) / self.aggressive_capital
                     # Activate dynamic protection if profit reaches or exceeds 10%
                     if tracked_profit_pct >= 0.3:
-                        print(
-                            f"{stock} in {tracked_processed_stock['date'].iloc[0]} needs attention in profit protection | current profit rate: {tracked_profit_pct}")
                         self.dynamic_protection = True
                         self.peak_profit = tracked_profit_loss  # Set the initial peak profit
                         self.peak_profit_pct = tracked_profit_pct
@@ -512,21 +513,14 @@ class DailyTradingStrategy:
                     # Track updated profit or loss
                     tracked_profit_loss = self.track_profit_loss(trade_type, tracked_alert_stock, sell=False)
                     tracked_profit_pct = (tracked_profit_loss - self.aggressive_capital) / self.aggressive_capital
-
-                    print(
-                        f"{tracked_processed_stock['symbol'].iloc[0]}| {tracked_processed_stock['date'].iloc[0]}: current profit: {tracked_profit_loss} | current profit rate: {tracked_profit_pct}")
-
                     # Update the peak profit if the profit is increasing
                     if tracked_profit_loss > self.peak_profit:
                         self.peak_profit = tracked_profit_loss
                         self.peak_profit_pct = tracked_profit_pct
-                        print(
-                            f"New peak profit updated: {tracked_processed_stock['symbol'].iloc[0]} earns {self.peak_profit}")
-
+      
                     # Sell if the profit has declined by 50% from the peak profit
                     if self.peak_profit_pct - tracked_profit_pct >= self.peak_profit_pct * 0.5:
-                        print(
-                            f"{stock} Profit declined by 50% from the peak. Initiating sell.| Peak profit rate: {self.peak_profit_pct} vs. Current profit rate: {tracked_profit_pct}")
+                       
                         self.track_profit_loss(trade_type, tracked_alert_stock, sell=True)
                         self.dynamic_protection = False  # Reset dynamic protection after selling
                         self.protected = True

@@ -6,9 +6,6 @@ from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import display_live_data
 
-# Ensure the correct path to the 'data' directory
-from stock_candidates_analysis import DailyTradingStrategy
-
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]
@@ -77,6 +74,7 @@ def main():
         st.sidebar.button("Long Term Analysis", on_click=lambda: st.session_state.update(current_page="Long Term"))
         st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
         st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
+        
     elif st.session_state['current_page'] == "Sign Up":
         st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
 
@@ -106,15 +104,15 @@ def main():
                     /* Text styling and animation */
                     .marquee {
                         display: inline-block;
-                        padding-left: 1%; /* Start outside view */
+                        padding-left: 100%; /* Start outside view */
                         font-size: 18px;
                         font-weight: bold;
-                        animation: scroll 120s linear infinite; 
+                        animation: scroll 240s linear infinite; 
                     }
 
                     /* Define the scrolling animation */
                     @keyframes scroll {
-                        0% { transform: translateX(15%); } /* Start closer */
+                        100% { transform: translateX(15%); } /* Start closer */
                         100% { transform: translateX(-100%); }
                     }
                     </style>
