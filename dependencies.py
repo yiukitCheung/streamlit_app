@@ -72,8 +72,7 @@ def init_postgres():
         cursor.close()
         conn.close()
 
-    except psycopg2.Error as e:
-        st.error(f"Database error: {e}")
+
     except Exception as e:
         st.error(f"An error occurred: {e}")
 

@@ -293,7 +293,7 @@ def plot_live_page(db, stock_selector, interval):
     plot_support_resistance_histogram(filtered_batch_alerts)
 
 
-def display_live_data():
+def short_term_dashboard():
     def initialize_mongo_client():
         client = pymongo.MongoClient(st.secrets["mongo"]["host"])
         return client[DB_NAME]

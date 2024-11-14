@@ -4,7 +4,8 @@ from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign
 from add_portfolio import add_portfolio
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
-from short_term import display_live_data
+from short_term import short_term_dashboard
+from settings_page import settings_page
 import redis
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
@@ -82,7 +83,7 @@ def main():
         st.sidebar.button("Long Term Analysis", on_click=lambda: st.session_state.update(current_page="Long Term"))
         st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
         st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
-        
+        st.sidebar.button("Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
     elif st.session_state['current_page'] == "Sign Up":
         st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
 
@@ -182,9 +183,11 @@ def main():
         elif st.session_state['current_page'] == "Long Term":
             long_term_dashboard()
         elif st.session_state['current_page'] == "Short Term":
-            display_live_data()
+            short_term_dashboard()
         elif st.session_state['current_page'] == "Portfolio":
             add_portfolio()
+        elif st.session_state['current_page'] == "Settings":
+            settings_page()
 
 if __name__ == "__main__":
     main()
