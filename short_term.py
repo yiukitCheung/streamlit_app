@@ -302,6 +302,7 @@ def short_term_dashboard():
     db = initialize_mongo_client()
     # Get the list of stocks
     options = sorted(db[STREAMING_COLLECTIONS[0]].find({'instrument':'equity'}).distinct("symbol"))
+    
     intervals = DESIRED_STREAMING_INTERVAL
     # Streamlit UI
     st.markdown("<h2 style='text-align: center;'>Short Term Alerts Dashboard</h2>", unsafe_allow_html=True)

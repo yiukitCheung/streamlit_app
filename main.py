@@ -80,8 +80,8 @@ def main():
     if st.session_state.get('logged_in'):
         st.sidebar.button("Log Out", on_click=logout)
         st.sidebar.button("User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
-        st.sidebar.button("Long Term Analysis", on_click=lambda: st.session_state.update(current_page="Long Term"))
-        st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
+        st.sidebar.button("Stock InDepth", on_click=lambda: st.session_state.update(current_page="Long Term"))
+        # st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
         st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
         st.sidebar.button("Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
     elif st.session_state['current_page'] == "Sign Up":
@@ -182,8 +182,8 @@ def main():
             user_dashboard()
         elif st.session_state['current_page'] == "Long Term":
             long_term_dashboard()
-        elif st.session_state['current_page'] == "Short Term":
-            short_term_dashboard()
+        # elif st.session_state['current_page'] == "Short Term":
+        #     short_term_dashboard()
         elif st.session_state['current_page'] == "Portfolio":
             add_portfolio()
         elif st.session_state['current_page'] == "Settings":
