@@ -43,7 +43,7 @@ def initialize_mongo_client():
 def analyze_strategy_results():
     # Fetch the results from MongoDB (simulate this for now)
     results_df = pd.DataFrame(list(initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION].find({})))
-
+    
     # Ensure the profit/loss column is used correctly and already in decimal format
     results_df['profit_loss_pct'] = results_df['final_profit_loss_pct']  # Adjusted column name
 
@@ -72,11 +72,9 @@ def analyze_strategy_results():
     
 @st.cache_data
 def fetch_data(instrument, interval):
-    
     collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
     query = {"instrument": instrument, "interval": interval}
     cursor = collection_obj.find(query)
-    
     return pd.DataFrame(list(cursor))
 
 def fetch_alert_data(instrument, symbol):
@@ -190,7 +188,7 @@ def portfolio_chart(username: str):
         """, unsafe_allow_html=True)
     return True
 
-def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
+def overview_chart(instrument: str, selected_symbols: list, chart_type: str, selected_interval: int):
     # Plot the cumulative return of Index
     if chart_type == "Cumulative Return":
         cum_return_chart = go.Figure()
@@ -206,7 +204,7 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
             name=selected_symbols,
             opacity=0.5
         ))
-        
+    
         cum_return_chart.update_layout(
             title={
                 "text": f"{selected_symbols} YTD Return",
@@ -227,12 +225,23 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
         chart = cum_return_chart
         
     elif chart_type == "Candlesticks":
-        df = fetch_data(instrument, 1)[['date', 'open', 'high', 'low', 'close', 'symbol']]
+        data = fetch_data(instrument, 1)[['date', 'open', 'high', 'low', 'close', 'symbol']]
         
         # Filter the data for the selected symbol
-        distinct_symbols = df['symbol'].unique() if not selected_symbols else selected_symbols
-        filtered_df = df[df['symbol'] == distinct_symbols]
-
+        distinct_symbols = data['symbol'].unique() if not selected_symbols else selected_symbols
+        data = data[data['symbol'] == distinct_symbols]
+        
+        if selected_interval == 1:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
+        elif selected_interval == 3:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
+        elif selected_interval == 5:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
+        elif selected_interval == 8:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
+        else:
+            filtered_df = data
+            
         candlestick_chart = go.Figure()
         candlestick_chart.add_trace(go.Candlestick(
             x=filtered_df['date'].astype(str),
@@ -243,20 +252,17 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
             name='price'
         ))
 
+        # Update y-axis properties with padding
+        candlestick_chart.update_yaxes(
+            range=[min(filtered_df['close']) * 0.9, max(filtered_df['close']) * 1.1],  # Adjust the range to add padding
+            title='Value',
+            showgrid=True,  # Optional: show gridlines for better readability
+            zeroline=True  # Optional: show a zero line if needed
+        )
+        
         # Update layout to include range selector but without the range slider
+        
         candlestick_chart.update_layout(
-            xaxis=dict(
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1m", step="month", stepmode="backward"),
-                        dict(count=3, label="3m", step="month", stepmode="backward"),
-                        dict(count=6, label="6m", step="month", stepmode="backward"),
-                        dict(count=1, label="YTD", step="year", stepmode="todate"),
-                        dict(count=5, label="5y", step="year", stepmode="backward"),
-                    ])
-                )
-            ),
-            
             title={
                 "text": f"{selected_symbols} Candlesticks", 
                 "x": 0.5,
@@ -288,9 +294,19 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
         data = fetch_data(instrument, 1)[['close', 'date', 'symbol']]
         data = data[data['symbol'] == selected_symbols]
 
+        if selected_interval == 1:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
+        elif selected_interval == 3:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
+        elif selected_interval == 5:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
+        elif selected_interval == 8:
+            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
+        else:
+            filtered_df = data
         line_chart.add_trace(go.Scatter(
-            x=data['date'],
-            y=data['close'],
+            x=filtered_df['date'],
+            y=filtered_df['close'],
             fill='tozeroy',
             name=selected_symbols,
             opacity=0.5
@@ -298,27 +314,13 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
         
         # Update y-axis properties with padding
         line_chart.update_yaxes(
-            range=[min(data['close']) * 0.9, max(data['close']) * 1.1],  # Adjust the range to add padding
+            range=[min(filtered_df['close']) * 0.9, max(filtered_df['close']) * 1.1],  # Adjust the range to add padding
             title='Value',
             showgrid=True,  # Optional: show gridlines for better readability
             zeroline=True  # Optional: show a zero line if needed
         )
         # Update layout to include range selector and range slider
         line_chart.update_layout(
-            xaxis=dict(
-                rangeselector=dict(
-                    buttons=list([
-                        dict(count=1, label="1m", step="month", stepmode="backward"),
-                        dict(count=3, label="3m", step="month", stepmode="backward"),
-                        dict(count=6, label="6m", step="month", stepmode="backward"),
-                        dict(count=1, label="YTD", step="year", stepmode="todate"),
-                        dict(count=5, label="5y", step="year", stepmode="backward"),
-                        dict(step="all", label="Max")  # Display all available data
-                    ])
-                ),
-                rangeslider=dict(visible=True),  # Add a range slider below the x-axis
-                type="date"
-            ),
             xaxis_rangeslider_visible=False,
             title={
                 "text": f"{selected_symbols} YTD Line Chart",
@@ -339,6 +341,7 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str):
         )
         
         chart = line_chart
+    
     return chart
 
 def display_user_dashboard_content(cur_alert_dict=None):
@@ -349,8 +352,13 @@ def display_user_dashboard_content(cur_alert_dict=None):
         with col_overview:
             overview_container = st.container()
             with overview_container:
+                st.markdown("""
+                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                        Market Health Overview
+                    </div>
+                """, unsafe_allow_html=True)
                 # Create columns for the instrument dropdown, symbol selection, and chart type
-                col1, col2, col3 = st.columns([1, 1, 1])  # Adjust the width ratios as needed
+                col1, col2, col3 = st.columns([1, 1, 1]) 
 
                 # Dropdown for instrument selection
                 with col1:
@@ -364,24 +372,58 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         st.session_state['instrument'] = "index"
                     try:
                         symbols = fetch_data(st.session_state['instrument'], 1)['symbol'].unique()
-                        selected_symbols = st.selectbox("Select Symbol", options=symbols)
+                        # Mapping symbols to descriptive names
+                        if st.session_state['instrument'] == "index":
+                            symbols_mapping = {
+                                "^IXIC": "Nasdaq Composite Index",
+                                "^DJI": "Dow Jones Industrial Average",
+                                "^RUT": "Russell 2000 Index",
+                                "^GSPC": "S&P 500 Index"
+                            }
+                        elif st.session_state['instrument'] == "commodity":
+                            symbols_mapping = {
+                                "GC=F": "Gold Futures",
+                                "NG=F": "Natural Gas Futures",
+                                "CL=F": "Crude Oil Futures",
+                                "SI=F": "Silver Futures"
+                            }
+                        elif st.session_state['instrument'] == "bond":
+                            symbols_mapping = {
+                                "^TNX": "10-Year Treasury Yield",
+                                "^TYX": "30-Year Treasury Yield",
+                                "^FVX": "5-Year Treasury Yield"
+                            }
+                        elif st.session_state['instrument'] == "sector":
+                            symbols_mapping = {
+                                "SOXX": "iShares Semiconductor ETF",
+                                "XLK": "Technology Select Sector SPDR",
+                                "XLV": "Health Care Select Sector SPDR",
+                                "XLF": "Financial Select Sector SPDR",
+                                "XLE": "Energy Select Sector SPDR",
+                                "XLB": "Materials Select Sector SPDR",
+                                "XLRE": "Real Estate Select Sector SPDR",
+                                "XLU": "Utilities Select Sector SPDR",
+                                "XLY": "Consumer Discretionary Select Sector SPDR",
+                                "XLP": "Consumer Staples Select Sector SPDR"
+                            }
+
+                        # Fetch symbols (dummy list for example purposes)
+                        symbols = list(symbols_mapping.keys())
+
+                        # Display selectbox with mapped options
+                        selected_symbol = st.selectbox("Select Symbol", options=symbols, format_func=lambda x: symbols_mapping.get(x, x))
+
                     except Exception as e:
                         st.error(f"Error fetching symbols: {str(e)}")
 
                 # Chart type radio buttons
                 with col3:
-                    chart_type = st.selectbox("Chart Type", options=["Line Chart", "Cumulative Return", "Candlesticks"])
-                    chart = overview_chart(st.session_state['instrument'], selected_symbols, chart_type)
-
+                    chart_type = st.selectbox("Chart Type", options=["Line Chart", "Cumulative Return", "Candlesticks"], key="chart_type")
+                    
                 # Display the chart below the selection section
-                chart_layout = st.columns([4, 1])
+                chart_layout = st.columns([1, 3])
+                
                 with chart_layout[0]:
-                    try:
-                        st.plotly_chart(chart, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Error displaying chart: {str(e)}")
-                        
-                with chart_layout[1]:
                     interval_mapping = {
                                 1: "Short Term",
                                 3: "Short-Medium Term",
@@ -389,7 +431,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                 8: "Medium-Long Term",
                                 13: "Long Term"}
                     
-                    alert_data = fetch_alert_data(st.session_state['instrument'], selected_symbols)
+                    alert_data = fetch_alert_data(st.session_state['instrument'], selected_symbol)
                     distinct_intervals = alert_data['interval'].unique()
                     interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
                     label_to_interval = {v: k for k, v in interval_mapping.items()}
@@ -425,29 +467,37 @@ def display_user_dashboard_content(cur_alert_dict=None):
 
                     # Display the dots with the correct color and uniform text alignment
                     st.markdown(f"""
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 15px; right: 0px; gap: 20px;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 35px; gap: 20px;">
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[0]}; border-radius: 50%;"></div> 
-                                <div style="width: 100px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
+                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
                             </div>
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[4]}; border-radius: 50%;"></div> 
-                                <div style="width: 100px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Neutral</div>
+                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Neutral</div>
                             </div>
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[1]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Flag for Risk</div>
+                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Flag for Risk</div>
                             </div>
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[2]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Pessimistic</div>
+                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Pessimistic</div>
                             </div>
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[3]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 14px; color: #333; font-weight: bold; text-align: left;">Consolidating</div>
+                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Consolidating</div>
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
+                with chart_layout[1]:
+                    try:
+                        chart = overview_chart(st.session_state['instrument'], selected_symbol, chart_type, selected_interval)
+
+                        st.plotly_chart(chart, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error displaying chart: {str(e)}")
+                        
 
         with col_portfolio:
             st.markdown("""
@@ -574,16 +624,16 @@ def display_user_dashboard_content(cur_alert_dict=None):
         col1, col2, col3 = st.columns(3)
 
         with col1:  # Short Term
-            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'accelerating'), "#4CAF50")
-            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "main_accumulating"), "#FFA500")
+            display_alert_section("Buy !", find_alert_symbols(cur_alert_dict, 'accelerating'), "#4CAF50")
+            display_alert_section("Some Capital sneaking in...", find_alert_symbols(cur_alert_dict, "main_accumulating"), "#FFA500")
 
         with col2:  # Mid Term
-            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'long_accelerating'), "#4CAF50")
-            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "long_main_accumulating"), "#FFA500")
+            display_alert_section("Buy !!", find_alert_symbols(cur_alert_dict, 'long_accelerating'), "#4CAF50")
+            display_alert_section("More Capital sneaking in !", find_alert_symbols(cur_alert_dict, "long_main_accumulating"), "#FFA500")
 
         with col3:  # Long Term
-            display_alert_section("Accelerating", find_alert_symbols(cur_alert_dict, 'ext_long_accelerating'), "#4CAF50")
-            display_alert_section("Uptrend Position Building", find_alert_symbols(cur_alert_dict, "ext_accumulating"), "#FFA500")
+            display_alert_section("Buy !!!", find_alert_symbols(cur_alert_dict, 'ext_long_accelerating'), "#4CAF50")
+            display_alert_section("Most of the capital is in !!!", find_alert_symbols(cur_alert_dict, "ext_accumulating"), "#FFA500")
 
 def user_dashboard():
     # Welcom message
@@ -643,7 +693,6 @@ def user_dashboard():
         """,
         unsafe_allow_html=True
     )
-    st.markdown(f"<h1 style='text-align: center;'>{username}'s Dashboard </h1>", unsafe_allow_html=True)
 
     # Prepare data for display data
     most_recent_trade_date = pd.to_datetime(get_most_current_trading_date())
