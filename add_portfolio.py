@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 from pymongo import MongoClient
+from dependencies import initialize_mongo_client, fetch_symbol_portfolio
+import psycopg2
 
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
@@ -12,24 +14,6 @@ ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
 CANDI_COLLECTION = st.secrets['mongo']['candidate_collection_name']
 PORTFOLIO_COLLECTION = st.secrets['mongo']['portfolio_collection_name']
 
-@st.cache_resource
-def initialize_mongo_client():
-    client = MongoClient(st.secrets["mongo"]["host"])
-    return client
-
-def fetch_symbol_portfolio(symbol: str):
-    try:
-        symbol = symbol.upper()
-        collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
-        cursor = collection_obj.find_one({'symbol': symbol}, projection={'symbol': True, '_id': False})
-        
-        if cursor:
-            return pd.DataFrame(list(cursor))
-
-        else:
-            return None
-    except Exception as e:
-        return None
 
 def add_to_portfolio(symbol: str, shares: int, avg_price: float, username: str):
     
@@ -87,7 +71,25 @@ def check_symbol_yahoo(symbol):
     except Exception as e:
         return False
 
-
+def add_stock_to_database(symbol: str, full_name: str):
+    try:
+        symbol = symbol.upper()
+        client = psycopg2.connect(
+            host=st.secrets['postgres']['host'],
+            database=st.secrets['postgres']['db_name_postgres'],
+            user=st.secrets['postgres']['user'],
+            password=st.secrets['postgres']['password']
+        )
+        cursor = client.cursor()
+        cursor.execute(f"INSERT INTO stock (symbol, name, instrument_type) VALUES ('{symbol}', '{full_name}', 'equity')")
+        client.commit()
+        cursor.close()
+        client.close()
+        st.success(f"Stock {symbol} added to database")
+        
+    except Exception as e:
+        st.error(f"Error adding stock {symbol} to database: {e}")
+        
 def add_portfolio():
     username = st.session_state['username']
     
@@ -125,7 +127,10 @@ def add_portfolio():
             
             if st.button("✨ Contribute New Stock", use_container_width=True):
                 if check_symbol_yahoo(search_stock.upper()):
-                    st.success("🎉 Thanks for your contribution! Our system is analyzing the stock and will add it to the database soon.")
+                    search_stock = search_stock.upper()
+                    full_name = yf.Ticker(search_stock).info.get('longName')
+                    add_stock_to_database(search_stock, full_name)
+                    st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
                     st.balloons()
                 else:
                     st.warning("😔 Sorry, this stock is not available on Market")

@@ -239,7 +239,8 @@ class ComputeAcceleratingProfits:
     
         # Load the processed data from the database
         self.df = pd.DataFrame(list(db[self.mongo_config['process_collection_name']].find(
-            {'date': {'$gte': pd.to_datetime(self.start_date)}}
+            {'date': {'$gte': pd.to_datetime(self.start_date)},
+             'instrument': 'equity'}
         )))
         
         # Load the stock candidates from the database
@@ -249,7 +250,8 @@ class ComputeAcceleratingProfits:
 
         # Load the alert data from the database
         alert_dict = list(db[self.mongo_config['alert_collection_name']['long_term']].find(
-            {'date': {'$gte': pd.to_datetime(self.start_date)}}
+            {'date': {'$gte': pd.to_datetime(self.start_date)},
+            'instrument': 'equity'}
         ))
 
         # Extract the alerts from the alert_dict
@@ -290,7 +292,7 @@ class ComputeAcceleratingProfits:
                 continue
 
             # Get stock-specific data once
-            stock_data = self.df[(self.df['symbol'] == stock) & (self.df['interval'] == 1)]
+            stock_data = self.df[(self.df['symbol'] == stock) & (self.df['interval'] == 1)].sort_values(by='date')
 
             if stock_data.empty:
                 continue
@@ -305,14 +307,12 @@ class ComputeAcceleratingProfits:
                 
             entry_date = stock_data.iloc[buy_date_idx]['date']
             entry_price = stock_data.iloc[buy_date_idx]['open']
-            
-            logging.info(f"buy {stock} at {entry_date}, price: {entry_price}")
-            
+                        
             # Track the stock from the day after purchase
             available_hold_start = buy_date_idx + 1
             for future_date_idx in range(available_hold_start, len(stock_data)):
-                future_date = stock_data.iloc[future_date_idx]['date']
                 
+                future_date = stock_data.iloc[future_date_idx]['date']
                 # Get velocity alert for the specific date and stock
                 velocity_signals = self.alert_df[
                     (self.alert_df['symbol'] == stock) & 
@@ -324,24 +324,24 @@ class ComputeAcceleratingProfits:
                     continue
                     
                 signal = velocity_signals['velocity_alert'].iloc[0]
-                current_price = stock_data.iloc[future_date_idx]['close']
+                current_price = stock_data[stock_data['date'] == future_date]['close'].iloc[0]
                 current_profit_pct = (current_price - entry_price) / entry_price
                 
                 # Dynamic protection logic
                 if not dynamic_protection:
                     if current_profit_pct >= 0.3:  # 30% profit trigger
                         peak_profit_pct = current_profit_pct
-                        logging.info(f"{stock}: Activating protection at {current_profit_pct:.2%} profit")
+                        print(f"{stock}: Activating protection at {current_profit_pct:.2%} profit")
                         dynamic_protection = True
                         
                 elif dynamic_protection:
+                    print(f"{stock}: Protection is on, current profit: {current_profit_pct:.2%} at {future_date}")
                     if current_profit_pct > peak_profit_pct:
                         peak_profit_pct = current_profit_pct
-                        logging.info(f"{stock}: New peak profit {peak_profit_pct:.2%}")
                         
                     # Check if profit dropped 50% from peak
                     if peak_profit_pct - current_profit_pct >= peak_profit_pct * 0.5:
-                        logging.info(f'{stock}: Protection triggered sell at {current_profit_pct:.2%} (Peak was {peak_profit_pct:.2%})')
+                        print(f'{stock}: Protection triggered sell at {current_profit_pct:.2%} in {future_date} (Peak was {peak_profit_pct:.2%})')
                         results.append({
                             'entry_date': entry_date,
                             'exit_date': future_date,
@@ -350,11 +350,11 @@ class ComputeAcceleratingProfits:
                             'exit_reason': 'protection'
                         })
                         break
-                
+                        
                 # Regular sell signals
                 if not protected:
                     if signal == 'velocity_loss':
-                        logging.info(f'{stock}: Velocity loss triggered sell at {current_profit_pct:.2%} in {future_date}')
+                        print(f'{stock}: Velocity loss triggered sell at {current_profit_pct:.2%} in {future_date}')
                         results.append({
                             'entry_date': entry_date,
                             'exit_date': future_date,
@@ -366,7 +366,7 @@ class ComputeAcceleratingProfits:
                     
                     # End of available data
                     if future_date_idx == len(stock_data) - 1:
-                        logging.info(f'{stock}: End of data sell at {current_profit_pct:.2%}')
+                        print(f'{stock}: End of data sell at {current_profit_pct:.2%}')
                         results.append({
                             'entry_date': entry_date,
                             'exit_date': future_date,
@@ -392,7 +392,7 @@ class ComputeAcceleratingProfits:
                     "granularity": "hours"
                 }
             )
-            logging.info(f"Time Series Collection {collection_name} created successfully")
+            print(f"Time Series Collection {collection_name} created successfully")
 
         latest_record = db[collection_name].find_one(sort=[("entry_date", -1)])
 
@@ -400,24 +400,25 @@ class ComputeAcceleratingProfits:
             latest_date = latest_record['entry_date']
             results_df = results_df[results_df['entry_date'] > latest_date]
         else:
-            logging.info("No existing records found. Inserting all results.")
+            print("No existing records found. Inserting all results.")
 
         documents = results_df.to_dict(orient='records')
 
         if documents:
             try:
                 db[collection_name].insert_many(documents, ordered=False)
-                logging.info("Results inserted successfully!")
+                print("Results inserted successfully!")
             except Exception as e:
                 logging.error(f"Error inserting documents: {e}")
         else:
-            logging.info("No new data to insert. All candidate data is up to date.")
+            print("No new data to insert. All candidate data is up to date.")
 
         client.close()
 
     def run(self):
         self.load_data()
         results_df = self.compute_accelerating_profits()
+        # print(results_df.sort_values(by=['final_profit_loss_pct', 'symbol'], ascending=False))
         self.insert_results(results_df)
 
 class DailyTradingStrategy:

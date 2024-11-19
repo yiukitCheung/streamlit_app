@@ -1,6 +1,7 @@
 import streamlit as st
 import psycopg2
 import os, re, hashlib
+import pandas as pd
 from pymongo import MongoClient
 from twilio.rest import Client
 
@@ -15,7 +16,7 @@ mongo_uri = st.secrets['mongo']['host']
 db_name = st.secrets['mongo']['db_name']
 portfolio_collection_name = st.secrets['mongo']['portfolio_collection_name']
 sandbox_collection_name = st.secrets['mongo']['sandbox_collection_name']
-
+processed_collection_name = st.secrets['mongo']['processed_collection_name']
 account_sid = st.secrets['twilio']['ACC_SID']
 auth_token = st.secrets['twilio']['AUTH_TOKEN']
 
@@ -24,6 +25,12 @@ client = Client(account_sid, auth_token)
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+@st.cache_resource
+def initialize_mongo_client():
+    client = MongoClient(st.secrets["mongo"]["host"])
+    return client
+
+@st.cache_resource
 def init_mongodb_portfolio():
     try:
         client = MongoClient(mongo_uri)
@@ -191,3 +198,17 @@ def verify_user(username, password):
     except psycopg2.Error as e:
         st.error(f"Database error: {e}")
         return False, None
+
+def fetch_symbol_portfolio(symbol: str):
+    try:
+        symbol = symbol.upper()
+        collection_obj = initialize_mongo_client()[db_name][processed_collection_name]
+        cursor = collection_obj.find_one({'symbol': symbol}, projection={'symbol': True, '_id': False})
+        
+        if cursor:
+            return pd.DataFrame(list(cursor))
+
+        else:
+            return None
+    except Exception as e:
+        return None

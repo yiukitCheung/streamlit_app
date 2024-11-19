@@ -33,7 +33,7 @@ def initialize_redis():
 def fetch_sandbox_records():
     client = MongoClient(URL)
     db = client[DB_NAME]
-    records = list(db[SANDBOX_COLLECTION].find({}, {'_id':0}))
+    records = list(db[SANDBOX_COLLECTION].find({}, {'_id':0}, sort=[('entry_date', 1)]))
     return records
 
 # Initialize session state
@@ -116,7 +116,7 @@ def main():
                         padding-left: 100%; /* Start outside view */
                         font-size: 18px;
                         font-weight: bold;
-                        animation: scroll 240s linear infinite; 
+                        animation: scroll 480s linear infinite; 
                     }
 
                     /* Define the scrolling animation */
@@ -140,7 +140,7 @@ def main():
                     f"""
                     <div class="marquee-container">
                         <span class="marquee">
-                            CondVest 2024 Long Term Opportunity Alert: {scrolling_text}
+                            CondVest Backtest Results from 2021: {scrolling_text}
                         </span>
                     </div>
                     """,
