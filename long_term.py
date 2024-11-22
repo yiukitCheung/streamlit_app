@@ -1,12 +1,9 @@
 import pandas as pd
-import numpy as np
-import pymongo
 import plotly.graph_objects as go
 import streamlit as st
 import plotly.subplots as sp
-import io
-import redis
-import time
+import io, redis, time, json, pymongo
+from streamlit_autorefresh import st_autorefresh
 
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
@@ -125,39 +122,66 @@ def fetch_alert_data(redis_client, collection, stock_symbol, interval):
             
     return df
 
+def fetch_latest_stock_data(redis_client, symbol):
+    """
+    Fetches the latest stock data from Redis cache for a given symbol.
+    """
+    try:
+        realtime_key = f"live_trade:{symbol}"
+        cached_data = redis_client.hgetall(realtime_key)
+        if cached_data:
+            decoded_data = {key.decode(): float(value.decode()) for key, value in cached_data.items()}
+            return decoded_data
+        return None
+    except Exception as e:
+        st.warning(f"Error fetching latest data for {symbol}: {str(e)}")
+        return None
+    
 
-def candle_chart(filtered_df):
+def candle_chart(filtered_df, latest_data):
 
-    row_height = [1]
-    row = 1
-    # Calculate the date range for the last 6 months
+    # If live data exists, append it to the dataframe
+    if latest_data and all(v is not None for v in latest_data.values()) and filtered_df['interval'].iloc[-1] == 1:
+        # Create new row with latest data
+        latest_data = pd.DataFrame([latest_data])
+        
+        # Inherit all columns from filtered_df
+        for col in filtered_df.columns:
+            if col not in latest_data.columns:
+                latest_data[col] = filtered_df[col].iloc[-1]
+        
+        # Increment date by 1 day
+        latest_data['date'] = filtered_df['date'].max() + pd.Timedelta(days=1)
+        
+        # Concatenate with original dataframe
+        filtered_df = pd.concat([filtered_df, latest_data])
+        # Calculate date range and price range for last 6 months
     end_date = filtered_df['date'].max() + pd.DateOffset(days=20)
     start_date = end_date - pd.DateOffset(months=6)
     
-    # Calculate the price range for the last 6 months
     price_range = filtered_df[(filtered_df['date'] >= start_date) & (filtered_df['date'] <= end_date)]
-    min_price = price_range['low'].min() * 0.95 
+    min_price = price_range['low'].min() * 0.95
     max_price = price_range['high'].max() * 1.05
-    
-    fig = sp.make_subplots(rows=row, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=row_height)
 
+    # Create figure with candlestick chart
+    fig = sp.make_subplots(rows=1, cols=1, shared_xaxes=True)
+    
     fig.add_trace(go.Candlestick(
         x=filtered_df['date'],
-        open=filtered_df['open'],
+        open=filtered_df['open'], 
         high=filtered_df['high'],
         low=filtered_df['low'],
         close=filtered_df['close'],
-        name='price'), row=1, col=1)
-    
-    fig.update_xaxes(range=[start_date, end_date],title_text="Date", row=1, col=1)
-    
-    for ema in ['144ema', '169ema', '13ema', '8ema']:
-        fig.add_trace(go.Scatter(x=filtered_df['date'], y=filtered_df[ema], mode="lines", name=ema), row=1, col=1)
-        
-    fig.update_xaxes(range=[start_date, end_date],title_text="Date", row=1, col=1)
-    fig.update_yaxes(range=[min_price, max_price], title_text="Price", row=1, col=1)
+        name='price'))
 
-    fig.update_layout(xaxis_rangeslider_visible=False, autosize=False, showlegend=False, margin=dict(t=10, b=10, l=10, r=10))
+    # Add EMA lines
+    for ema in ['144ema', '169ema', '13ema', '8ema']:
+        fig.add_trace(go.Scatter(x=filtered_df['date'], y=filtered_df[ema], mode="lines", name=ema))
+
+    # Update axes and layout
+    fig.update_xaxes(range=[start_date, end_date], title_text="Date")
+    fig.update_yaxes(range=[min_price, max_price], title_text="Price")
+    fig.update_layout(xaxis_rangeslider_visible=False, showlegend=False, margin=dict(t=10, b=10, l=10, r=10))
 
     return fig
 
@@ -254,24 +278,37 @@ def static_analysis_page(processed_col, alert_col, redis_client):
             stock_selector = st.selectbox('Select Stock', options=stock_options, index=0)
         with interval_col:
             # Create a dropdown to select the interval
-            default_interval = '1D'
-            interval_selector = st.selectbox('Optimal Interval/ Select Interval',
-                                                options=sorted(processed_col.distinct("interval")),
-                                                index=sorted(processed_col.distinct("interval")). \
-                                                index(default_interval) if default_interval in processed_col.distinct("interval")\
-                                                else 0)
-    
+            interval_mapping = {
+                                1: "Short Term",
+                                3: "Short-Medium Term",
+                                5: "Medium Term",
+                                8: "Medium-Long Term",
+                                13: "Long Term"}
+
+            distinct_intervals = alert_col.distinct("interval")
+            interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
+            label_to_interval = {v: k for k, v in interval_mapping.items()}
+
+            # Slidebar for interval selection
+            selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider')
+            interval_selector = label_to_interval[selected_label]
+            
     chart_container = st.container()
     with chart_container:
         with st.spinner("Loading data..."):
             processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, interval_selector)
-        
+            latest_data = fetch_latest_stock_data(redis_client, stock_selector)
+
         candlesticks_chart, fundmentals_chart = st.columns([3, 1])
         with candlesticks_chart:
-            # Create the figure
-            fig = candle_chart(processed_df)
-            st.plotly_chart(fig, use_container_width=True)
+            # Add auto-refresh functionality
+            st_autorefresh(interval=600000, key="chart")
 
+            # Create placeholder for the chart
+            chart_placeholder = st.empty()
+            fig = candle_chart(processed_df, latest_data)
+            chart_placeholder.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
+            
         with fundmentals_chart:
             fundemental_chart(processed_df)
 

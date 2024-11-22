@@ -122,22 +122,73 @@ def sign_up_process():
             else:
                 st.error("Error creating account. The username may already exist.")
 
+def forgot_password():
+    st.session_state["profile_verified"] = False
+    # User verification form
+    if not st.session_state.profile_verified:
+        with st.form(key='verify_user_form'):
+            username = st.text_input("What is your username?")
+            phone_number = st.text_input("What is your phone number?")
+            new_password = st.text_input("Enter your new password:", type="password")
+            submit = st.form_submit_button("Reset Password")
+        
+        if submit:
+            if username and phone_number:
+                # Mocking database check
+                if get_specific_username(username) and get_specific_phone_number(username, phone_number):
+                    st.success("Profile found! Please reset your password.")
+                    st.session_state.profile_verified = True
+                    st.session_state.username = username
+                    st.session_state.phone_number = phone_number
+                    if reset_password(username, phone_number, new_password):
+                        st.success("Password updated successfully!")
+                    else:
+                        st.error("Failed to update password.")
+                else:
+                    st.error("Invalid username or phone number.")
+            else:
+                st.error("Please provide both username and phone number.")
+
+
+
 def get_usernames():
     try:
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port)
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM public.users")
         result = cursor.fetchall()
         cursor.close()
         conn.close()
-        return result
+        if result:
+            return True
+        else:
+            return False
     except Exception as e:
         st.error(f"Error fetching usernames: {e}")
-    return []
+        return False
+    
+def get_specific_username(username):
+    try:
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM public.users WHERE username = %s", (username,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if result:
+            return True
+        else:
+            return False
+        
+    except Exception as e:
+        st.error(f"Error fetching usernames: {e}")
+        
+    return False
 
 def get_phone_number():
     try:
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port)
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
         cursor = conn.cursor()
         cursor.execute("SELECT mobile FROM public.users")
         result = cursor.fetchall()
@@ -146,8 +197,23 @@ def get_phone_number():
         return result
     except Exception as e:
         st.error(f"Error fetching phone numbers: {e}")
-    return []
+        return False
 
+def get_specific_phone_number(username, phone_number):
+    try:
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM public.users WHERE username = %s AND mobile = %s", (username, phone_number))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if result:
+            return True
+        else:
+            return False
+    except Exception as e:
+        st.error(f"Error fetching phone numbers: {e}")
+        
 def validate_username(username):
     return bool(re.match(r'^[a-zA-Z0-9_]+$', username))
 
@@ -156,7 +222,7 @@ def validate_phone_number(phone_number):
 
 def insert_user_data(username, password, phone_number):
     try:
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO public.users (username, password, mobile) VALUES (%s, %s, %s)",
                     (username, password, phone_number))
@@ -183,7 +249,7 @@ def send_welcome_msg(twilio_client, number, target_number):
 def verify_user(username, password):
     try:
         # Replace with your actual PostgreSQL database credentials
-        conn = psycopg2.connect(database=dbname, user=user, host=host, port=port, password=key)
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
         cursor = conn.cursor()
         cursor.execute("SELECT password, role FROM users WHERE username = %s", (username,))
         result = cursor.fetchone()
@@ -212,3 +278,18 @@ def fetch_symbol_portfolio(symbol: str):
             return None
     except Exception as e:
         return None
+
+def reset_password(username, phone_number, new_password):
+    try:
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
+        cursor = conn.cursor()
+        hashed_password = hash_password(new_password)
+        cursor.execute("UPDATE public.users SET password = %s WHERE username = %s AND mobile = %s", (hashed_password, username, phone_number))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error resetting password: {e}")
+        return False
+            

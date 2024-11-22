@@ -1,6 +1,6 @@
 import streamlit as st
 from pymongo import MongoClient
-from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign_up_process
+from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign_up_process, forgot_password
 from add_portfolio import add_portfolio
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
@@ -43,7 +43,9 @@ if 'show_login' not in st.session_state:
     st.session_state['show_login'] = False
 if 'instrument' not in st.session_state:
     st.session_state['instrument'] = "index"
-
+if "profile_verified" not in st.session_state:
+    st.session_state["profile_verified"] = False
+    
 def login():
     st.header("Member Login")
     username = st.text_input("Username")
@@ -81,12 +83,13 @@ def main():
         st.sidebar.button("Log Out", on_click=logout)
         st.sidebar.button("User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
         st.sidebar.button("Stock InDepth", on_click=lambda: st.session_state.update(current_page="Long Term"))
-        # st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
+        st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
         st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
         st.sidebar.button("Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
     elif st.session_state['current_page'] == "Sign Up":
         st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
-
+    elif st.session_state['current_page'] == "Forgot Password":
+        st.sidebar.button("Back to Login", on_click=lambda: st.session_state.update(current_page="Login"))
     # Display page content based on the current page
     placeholder = st.empty()
     with placeholder.container():
@@ -95,6 +98,7 @@ def main():
             with col1:
                 login()
                 st.button("Sign Up", on_click=lambda: st.session_state.update(current_page="Sign Up"))
+                st.button("Forgot Password?", on_click=lambda: st.session_state.update(current_page="Forgot Password"))
                 # Display the marquee text
                 # CSS for scrolling marquee effect
                 st.markdown("""
@@ -175,15 +179,16 @@ def main():
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
-
+        elif st.session_state['current_page'] == "Forgot Password":
+            forgot_password()
         elif st.session_state['current_page'] == "Sign Up":
             sign_up_process()
         elif st.session_state['current_page'] == "Main Page":
             user_dashboard()
         elif st.session_state['current_page'] == "Long Term":
             long_term_dashboard()
-        # elif st.session_state['current_page'] == "Short Term":
-        #     short_term_dashboard()
+        elif st.session_state['current_page'] == "Short Term":
+            short_term_dashboard()
         elif st.session_state['current_page'] == "Portfolio":
             add_portfolio()
         elif st.session_state['current_page'] == "Settings":
