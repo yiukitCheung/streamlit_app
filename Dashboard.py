@@ -96,7 +96,7 @@ def fetch_return_data(instrument):
     distinct_symbols = df['symbol'].unique()
     symbol_dfs = []
     for symbol in distinct_symbols:
-        symbol_df = df[df['symbol'] == symbol]
+        symbol_df = df.loc[df['symbol'] == symbol]
         symbol_df.loc[:, 'cumulative_return'] = symbol_df.loc[:, 'close'].pct_change().fillna(0).add(1).cumprod()
         symbol_dfs.append(symbol_df)
     df = pd.concat(symbol_dfs)
@@ -188,23 +188,24 @@ def portfolio_chart(username: str):
         """, unsafe_allow_html=True)
     return True
 
-def overview_chart(instrument: str, selected_symbols: list, chart_type: str, selected_interval: int):
+def overview_chart(instrument: str, selected_symbols: str, chart_type: str, selected_interval: int):
     # Plot the cumulative return of Index
     if chart_type == "Cumulative Return":
         cum_return_chart = go.Figure()
-        cum_return_data = fetch_return_data(instrument)[['cumulative_return', 'date','symbol']]
         
-        
-        data = cum_return_data[cum_return_data['symbol'] == selected_symbols]
-        
+        # Get the data and filter for selected symbol in one step
+        cum_return_data = fetch_return_data(instrument)
+        data = cum_return_data.loc[cum_return_data['symbol'] == selected_symbols, ['cumulative_return', 'date', 'symbol','interval']]
+        data = data.sort_values(by='date', ascending=True)
+        # Add the trace to the chart using the filtered data directly
         cum_return_chart.add_trace(go.Scatter(
-            x=data['date'],
-            y=data['cumulative_return'],
+            x=data.loc[:, 'date'],
+            y=data.loc[:, 'cumulative_return'], 
             mode='lines+markers',
             name=selected_symbols,
             opacity=0.5
         ))
-    
+        # Update the layout of the chart
         cum_return_chart.update_layout(
             title={
                 "text": f"{selected_symbols} YTD Return",
@@ -216,45 +217,46 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str, sel
             yaxis_title="Cumulative Return",
             template="plotly_white",
             legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
                 x=1
             ))
         chart = cum_return_chart
         
     elif chart_type == "Candlesticks":
-        data = fetch_data(instrument, 1)[['date', 'open', 'high', 'low', 'close', 'symbol']]
+        data = fetch_data(instrument, 1).loc[:, ['date', 'open', 'high', 'low', 'close', 'symbol']]
         
         # Filter the data for the selected symbol
         distinct_symbols = data['symbol'].unique() if not selected_symbols else selected_symbols
-        data = data[data['symbol'] == distinct_symbols]
+        data = data.loc[data['symbol'] == distinct_symbols]
         
         if selected_interval == 1:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
         elif selected_interval == 3:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
         elif selected_interval == 5:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
         elif selected_interval == 8:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
         else:
             filtered_df = data
-            
+        
+        # Create the candlestick chart
         candlestick_chart = go.Figure()
         candlestick_chart.add_trace(go.Candlestick(
-            x=filtered_df['date'].astype(str),
-            open=filtered_df['open'],
-            high=filtered_df['high'],
-            low=filtered_df['low'],
-            close=filtered_df['close'],
+            x=filtered_df.loc[:,'date'].astype(str),
+            open=filtered_df.loc[:,'open'],
+            high=filtered_df.loc[:,'high'], 
+            low=filtered_df.loc[:,'low'],
+            close=filtered_df.loc[:,'close'],
             name='price'
         ))
 
         # Update y-axis properties with padding
         candlestick_chart.update_yaxes(
-            range=[min(filtered_df['close']) * 0.9, max(filtered_df['close']) * 1.1],  # Adjust the range to add padding
+            range=[min(filtered_df.loc[:,'close']) * 0.9, max(filtered_df.loc[:,'close']) * 1.1],  # Adjust the range to add padding
             title='Value',
             showgrid=True,  # Optional: show gridlines for better readability
             zeroline=True  # Optional: show a zero line if needed
@@ -291,17 +293,21 @@ def overview_chart(instrument: str, selected_symbols: list, chart_type: str, sel
         
     elif chart_type == 'Line Chart':
         line_chart = go.Figure()
-        data = fetch_data(instrument, 1)[['close', 'date', 'symbol']]
-        data = data[data['symbol'] == selected_symbols]
-
+        
+        # Get the data and filter for selected symbol in one step
+        data = fetch_data(instrument, 1).loc[:, ['close', 'date', 'symbol']]
+        data = data.loc[data['symbol'] == selected_symbols]
+        data = data.sort_values(by='date', ascending=True)
+        
+        # Filter the data based on the selected interval
         if selected_interval == 1:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=365)]
         elif selected_interval == 3:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=730)]
         elif selected_interval == 5:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=1825)]
         elif selected_interval == 8:
-            filtered_df = data[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
+            filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
         else:
             filtered_df = data
         line_chart.add_trace(go.Scatter(
@@ -412,7 +418,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
 
                         # Display selectbox with mapped options
                         selected_symbol = st.selectbox("Select Symbol", options=symbols, format_func=lambda x: symbols_mapping.get(x, x))
-
+                        
                     except Exception as e:
                         st.error(f"Error fetching symbols: {str(e)}")
 

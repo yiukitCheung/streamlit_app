@@ -149,8 +149,6 @@ def forgot_password():
             else:
                 st.error("Please provide both username and phone number.")
 
-
-
 def get_usernames():
     try:
         conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
