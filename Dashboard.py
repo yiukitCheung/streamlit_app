@@ -310,6 +310,7 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
             filtered_df = data.loc[data['date'] >= pd.to_datetime(data['date'].max()) - pd.Timedelta(days=3650)]
         else:
             filtered_df = data
+        
         line_chart.add_trace(go.Scatter(
             x=filtered_df['date'],
             y=filtered_df['close'],
