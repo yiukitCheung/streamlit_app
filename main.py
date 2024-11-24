@@ -45,7 +45,9 @@ if 'instrument' not in st.session_state:
     st.session_state['instrument'] = "index"
 if "profile_verified" not in st.session_state:
     st.session_state["profile_verified"] = False
-    
+if "alert_symbols" not in st.session_state:
+    st.session_state["alert_symbols"] = []
+
 def login():
     st.header("Member Login")
     username = st.text_input("Username")

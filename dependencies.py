@@ -4,7 +4,7 @@ import os, re, hashlib
 import pandas as pd
 from pymongo import MongoClient
 from twilio.rest import Client
-
+import yfinance as yf
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]
@@ -290,4 +290,44 @@ def reset_password(username, phone_number, new_password):
     except Exception as e:
         st.error(f"Error resetting password: {e}")
         return False
-            
+
+def search_stock(symbol: str):
+    try:
+        symbol = symbol.upper()
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM public.stock WHERE symbol = %s", (symbol,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return result
+    except Exception as e:
+        st.error(f"Error searching stock: {e}")
+        return None
+    
+def add_stock_to_database(symbol: str, full_name: str):
+    try:
+        symbol = symbol.upper()
+        client = psycopg2.connect(
+            host=st.secrets['postgres']['host'],
+            database=st.secrets['postgres']['db_name_postgres'],
+            user=st.secrets['postgres']['user'],
+            password=st.secrets['postgres']['password']
+        )
+        cursor = client.cursor()
+        cursor.execute(f"INSERT INTO stock (symbol, name, instrument_type) VALUES ('{symbol}', '{full_name}', 'equity')")
+        client.commit()
+        cursor.close()
+        client.close()
+        st.success(f"Stock {symbol} added to database")
+    except Exception as e:
+        st.error(f"Error adding stock {symbol} to database: {e}")
+
+def check_symbol_yahoo(symbol):
+    try:
+        ticker = yf.Ticker(symbol)
+        # Try to get current price - if successful, stock exists
+        current_price = ticker.info.get('currentPrice')
+        return current_price is not None
+    except Exception as e:
+        return False

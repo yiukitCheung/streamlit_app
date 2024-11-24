@@ -4,8 +4,10 @@ import pandas as pd
 from pymongo import MongoClient
 import yfinance as yf
 import numpy as np
+import redis, io, time
 from datetime import datetime
 from long_term import long_term_dashboard
+from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo
 # Ensure the correct path to the 'data' directory
 from stock_candidates_analysis import DailyTradingStrategy
 from add_portfolio import existing_portfolio
@@ -14,6 +16,14 @@ from config.mongdb_config import load_mongo_config
 DB_NAME = st.secrets['mongo']['db_name']
 WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
 WAREHOUSE_INTERVAL_COLLECTION = '1d_data'
+LONG_TERM_ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
+
+# Redis Configuration
+REDIS_HOST = st.secrets['redis']['host']
+REDIS_PORT = st.secrets['redis']['port']
+REDIS_PASSWORD = st.secrets['redis']['password']
+
+# MongoDB Configuration
 PROCESSED_COLLECTION = st.secrets['mongo']['processed_collection_name']
 ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
 CANDI_COLLECTION = st.secrets['mongo']['candidate_collection_name']
@@ -36,8 +46,20 @@ def get_most_current_trading_date() -> str:
 
 @st.cache_resource
 def initialize_mongo_client():
-    client = MongoClient(st.secrets["mongo"]["host"])
+    try:
+        client = MongoClient(st.secrets["mongo"]["host"])
+    except Exception as e:
+        st.error(f"Error initializing MongoDB client: {e}")
+        return None
     return client
+
+@st.cache_resource
+def initialize_redis():
+    try:
+        return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+    except Exception as e:
+        st.error(f"Error initializing Redis client: {e}")
+        return None
 
 @st.cache_data
 def analyze_strategy_results():
@@ -48,8 +70,8 @@ def analyze_strategy_results():
     results_df['profit_loss_pct'] = results_df['final_profit_loss_pct']  # Adjusted column name
 
     # Separate winning and losing trades based on profit_loss_pct
-    profits = results_df[results_df['profit_loss_pct'] > 0]['profit_loss_pct']
-    losses = results_df[results_df['profit_loss_pct'] <= 0]['profit_loss_pct']
+    profits = results_df.loc[results_df['profit_loss_pct'] > 0, 'profit_loss_pct']
+    losses = results_df.loc[results_df['profit_loss_pct'] <= 0, 'profit_loss_pct']
 
     # Calculate win rate
     total_trades = len(results_df)
@@ -72,10 +94,43 @@ def analyze_strategy_results():
     
 @st.cache_data
 def fetch_data(instrument, interval):
+    warehouse_interval = st.secrets['mongo']['warehouse_interval']
+    if not warehouse_interval:
+        raise ValueError("warehouse_interval is empty in st.secrets")
+
+    redis_client = initialize_redis()
     collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
-    query = {"instrument": instrument, "interval": interval}
-    cursor = collection_obj.find(query)
-    return pd.DataFrame(list(cursor))
+    redis_key = f"instrument_data:{instrument}:{interval}"
+
+    try:
+        # Check if data is cached in Redis and deserialize in one step
+        if cached_data := redis_client.get(redis_key):
+            data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+        else:
+            # Use MongoDB projection and sorting at database level
+            cursor = collection_obj.find(
+                {
+                    "instrument": instrument,
+                    "interval": interval,
+                    "date": {"$gte": pd.Timestamp.now() - pd.Timedelta(days=1825)}
+                },
+                {"_id": 0}
+            ).sort("date", 1)
+            
+            # Create DataFrame directly from cursor
+            data = pd.DataFrame(cursor)
+            
+            # Cache the result with compression
+            redis_client.set(
+                redis_key,
+                data.to_json(orient="records", date_format='iso')
+            )
+            
+        return data
+
+    except Exception as e:
+        st.error(f"Error fetching data: {str(e)}")
+        return pd.DataFrame()  # Return empty DataFrame on error
 
 def fetch_alert_data(instrument, symbol):
     
@@ -351,6 +406,63 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
     
     return chart
 
+def fetch_key_price(symbol: str):
+    # redis_client = initialize_redis()
+    # redis_key = f"key_price_data:{symbol}"
+
+    # try:
+    #     # Check if data is cached in Redis and deserialize in one step
+    #     if cached_data := redis_client.get(redis_key):
+    #         result = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+    #     else:
+    # Get data from MongoDB
+    mongo_client = initialize_mongo_client()
+    key_price_collection = mongo_client[DB_NAME][LONG_TERM_ALERT_COLLECTION]
+    pipeline = [
+        {"$match": {"symbol": symbol.upper(), "interval": 5}},
+        {"$project": {
+            "close": 1,
+            "_id": 0,
+            "fib_236": {"$ifNull": [{"$getField": {"field": "fib_236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "fib_382": {"$ifNull": [{"$getField": {"field": "fib_382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "fib_618": {"$ifNull": [{"$getField": {"field": "fib_618", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "fib_786": {"$ifNull": [{"$getField": {"field": "fib_786", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "fib_1236": {"$ifNull": [{"$getField": {"field": "fib_1236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "fib_1382": {"$ifNull": [{"$getField": {"field": "fib_1382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+            "top": {"$ifNull": [{"$getField": {"field": "top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+            "bottom": {"$ifNull": [{"$getField": {"field": "bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+            "second_top": {"$ifNull": [{"$getField": {"field": "second_top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+            "second_bottom": {"$ifNull": [{"$getField": {"field": "second_bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]}
+        }},
+        {"$sort": {"date": 1}}
+        
+    ]
+    
+    result = pd.DataFrame(list(key_price_collection.aggregate(pipeline))).iloc[-1]
+    # # Cache the result in Redis
+    # redis_client.set(
+    #     redis_key,
+    #     result.to_json(orient="records", date_format='iso')
+    # )
+        
+    return result
+
+    # except Exception as e:
+    #     st.error(f"Error fetching key price data: {str(e)}")
+    #     return pd.DataFrame()  # Return empty DataFrame on error
+
+def find_expected_value(symbol: str, shares: int):
+    key_price_data = fetch_key_price(symbol)
+    cur_price = key_price_data['close']
+    key_price_data = key_price_data.to_numpy().tolist()
+    
+    
+    expected_loss = round((min(key_price_data) - cur_price) / cur_price, 1)  * 100
+    expected_profit = round((max(key_price_data) - cur_price) / cur_price, 1) * 100
+
+    profit_loss_ratio = abs(round(expected_profit / expected_loss, 1))
+    return expected_loss, expected_profit, profit_loss_ratio
+
 def display_user_dashboard_content(cur_alert_dict=None):
     # Create a container for the overview section
     main_container = st.container()
@@ -563,29 +675,81 @@ def display_user_dashboard_content(cur_alert_dict=None):
                             </div>
                         """, unsafe_allow_html=True)
             
-    col_exp_profit, col_alert_section = st.columns([1, 3])
+    col_exp_profit, col_alert_section = st.columns([5, 3])
+    
     with col_exp_profit:
-        search_stock = st.text_input("Search Stock", key="search_stock")
-        if search_stock:
-            st.write(f"Searching for {search_stock}...")
+        st.markdown("""
+                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                    Stock Expected Profit/Loss
+                </div>
+        """, unsafe_allow_html=True) 
+        search_stock_symbol = st.text_input("Search Stock", key="search_stock")
+        if search_stock_symbol:
+            if search_stock(search_stock_symbol) != None:
+                
+                with st.container():
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        shares = st.slider("Shares", min_value=1, max_value=100, value=10, key="exp_shares")
+                    with col2:
+                        period_options = ["Short", "Medium", "Long"]
+                        selected_period = st.selectbox("Period", options=period_options, key="exp_period")
+                with st.container():
+                    expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, shares)
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        color = "#4CAF50" if expected_profit > abs(expected_loss) else "#FF0000"
+                        st.markdown(f"""
+                            <div style='color: {color}'>
+                                <p style='font-size:14px; margin-bottom:0'>Expected Return/Loss</p>
+                                <p style='font-size:20px; font-weight:bold'>{expected_profit:+,}%</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    with col2:
+                        color = "#4CAF50" if expected_profit > abs(expected_loss) else "#FF0000"
+                        st.markdown(f"""
+                            <div style='color: {color}'>
+                                <p style='font-size:14px; margin-bottom:0'>Expected Risk</p>
+                                <p style='font-size:20px; font-weight:bold'>{expected_loss:+,}%</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    with col3:
+                        color = "#4CAF50" if profit_loss_ratio > 1 else "#808080"
+                        st.markdown(f"""
+                            <div style='color: {color}'>
+                                <p style='font-size:14px; margin-bottom:0'>Profit/Loss Ratio</p>
+                                <p style='font-size:20px; font-weight:bold'>{profit_loss_ratio:+,}</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
+                if st.button("✨ Contribute New Stock", use_container_width=True):
+                    if check_symbol_yahoo(search_stock_symbol.upper()):
+                        search_stock_symbol = search_stock_symbol.upper()
+                        full_name = yf.Ticker(search_stock_symbol).info.get('longName')
+                        add_stock_to_database(search_stock_symbol, full_name)
+                        st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
+                        st.balloons()
+                    else:
+                        st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
+
     with col_alert_section:         
         alert_container = st.container()
 
         with alert_container:           
-            # Display header and section titles
-            def display_headers():
-                st.markdown("""
-                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                        Opportunity Alerts
-                    </div>
-                """, unsafe_allow_html=True)
-                st.markdown("""
-                    <div style="display: flex; justify-content: space-between;">
-                        <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Short Term</div>
-                        <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Mid Term</div>
-                        <div style="text-align: center; font-size: 20px; font-weight: bold; width: 33%;">Long Term</div>
-                    </div>
-                """, unsafe_allow_html=True)
+            # Display header
+            st.markdown("""
+                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                    Opportunity Alerts
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Add term selection dropdown
+            selected_term = st.selectbox(
+                "Select Trading Term",
+                ["Short Term", "Mid Term", "Long Term"],
+                key="term_selector"
+            )
 
             # Display alert section with title and results
             def display_alert_section(title, results, badge_color):
@@ -631,22 +795,30 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # Main display logic
-            display_headers()
-            col1, col2, col3 = st.columns(3)
+            # Display alerts based on selected term
+            if selected_term == "Short Term":
+                acc_alert = 'acclerating'
+                main_alert = 'main_accumulating'
+            elif selected_term == "Mid Term":
+                acc_alert = 'long_accumulating'
+                main_alert = 'long_main_accumulating'
+            else:  # Long Term
+                acc_alert = 'ext_long_accelerating'
+                main_alert = 'ext_accumulating'
 
-            with col1:  # Short Term
-                display_alert_section("Buy !", find_alert_symbols(cur_alert_dict, 'accelerating'), "#4CAF50")
-                display_alert_section("Some Capital sneaking in...", find_alert_symbols(cur_alert_dict, "main_accumulating"), "#FFA500")
-
-            with col2:  # Mid Term
-                display_alert_section("Buy !!", find_alert_symbols(cur_alert_dict, 'long_accelerating'), "#4CAF50")
-                display_alert_section("More Capital sneaking in !", find_alert_symbols(cur_alert_dict, "long_main_accumulating"), "#FFA500")
-
-            with col3:  # Long Term
-                display_alert_section("Buy !!!", find_alert_symbols(cur_alert_dict, 'ext_long_accelerating'), "#4CAF50")
-                display_alert_section("Most of the capital is in !!!", find_alert_symbols(cur_alert_dict, "ext_accumulating"), "#FFA500")
-
+            acc_alert_col, main_alert_col = st.columns(2)
+            acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
+            main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
+            with acc_alert_col:
+                display_alert_section("Buy !", acc_alert_symbols, "#4CAF50")
+            with main_alert_col:
+                display_alert_section("Some Capital sneaking in...", main_alert_symbols, "#FFA500")
+            
+            if acc_alert_symbols or main_alert_symbols:
+                st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
+            else:
+                st.session_state['alert_symbols'] = []
+            
 def user_dashboard():
     # Welcom message
     username = (st.session_state['username']).capitalize()

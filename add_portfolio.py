@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 from pymongo import MongoClient
-from dependencies import initialize_mongo_client, fetch_symbol_portfolio
+from dependencies import initialize_mongo_client, fetch_symbol_portfolio, add_stock_to_database, check_symbol_yahoo
 import psycopg2
 
 # MongoDB Configuration
@@ -62,33 +62,34 @@ def existing_portfolio(username: str):
 
     except Exception as e:
         return False
-def check_symbol_yahoo(symbol):
-    try:
-        ticker = yf.Ticker(symbol)
-        # Try to get current price - if successful, stock exists
-        current_price = ticker.info.get('currentPrice')
-        return current_price is not None
-    except Exception as e:
-        return False
+    
+# def check_symbol_yahoo(symbol):
+#     try:
+#         ticker = yf.Ticker(symbol)
+#         # Try to get current price - if successful, stock exists
+#         current_price = ticker.info.get('currentPrice')
+#         return current_price is not None
+#     except Exception as e:
+#         return False
 
-def add_stock_to_database(symbol: str, full_name: str):
-    try:
-        symbol = symbol.upper()
-        client = psycopg2.connect(
-            host=st.secrets['postgres']['host'],
-            database=st.secrets['postgres']['db_name_postgres'],
-            user=st.secrets['postgres']['user'],
-            password=st.secrets['postgres']['password']
-        )
-        cursor = client.cursor()
-        cursor.execute(f"INSERT INTO stock (symbol, name, instrument_type) VALUES ('{symbol}', '{full_name}', 'equity')")
-        client.commit()
-        cursor.close()
-        client.close()
-        st.success(f"Stock {symbol} added to database")
+# def add_stock_to_database(symbol: str, full_name: str):
+#     try:
+#         symbol = symbol.upper()
+#         client = psycopg2.connect(
+#             host=st.secrets['postgres']['host'],
+#             database=st.secrets['postgres']['db_name_postgres'],
+#             user=st.secrets['postgres']['user'],
+#             password=st.secrets['postgres']['password']
+#         )
+#         cursor = client.cursor()
+#         cursor.execute(f"INSERT INTO stock (symbol, name, instrument_type) VALUES ('{symbol}', '{full_name}', 'equity')")
+#         client.commit()
+#         cursor.close()
+#         client.close()
+#         st.success(f"Stock {symbol} added to database")
         
-    except Exception as e:
-        st.error(f"Error adding stock {symbol} to database: {e}")
+#     except Exception as e:
+#         st.error(f"Error adding stock {symbol} to database: {e}")
         
 def add_portfolio():
     username = st.session_state['username']
