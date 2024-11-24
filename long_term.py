@@ -253,7 +253,18 @@ def candle_chart(filtered_df, latest_data, alert_df):
     # Update axes and layout
     fig.update_xaxes(range=[start_date, end_date], title_text="Date")
     fig.update_yaxes(range=[min_price, max_price], title_text="Price")
-    fig.update_layout(xaxis_rangeslider_visible=False, showlegend=False, margin=dict(t=10, b=10, l=10, r=10))
+    
+    # Update layout
+    fig.update_layout(
+        xaxis_rangeslider_visible=False, 
+        showlegend=False, 
+        margin=dict(t=30, b=10, l=10, r=10),
+        title=dict(
+            text=filtered_df['symbol'].iloc[0],
+            x=0.5,
+            y=0.95
+        )
+    )
 
     return fig
 
