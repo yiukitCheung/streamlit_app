@@ -402,7 +402,7 @@ def static_analysis_page(processed_col, alert_col, redis_client):
             selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider')
             interval_selector = label_to_interval[selected_label]
         with show_structure_col:
-            show_structure = st.multiselect("Key Price Areas", options=['Key Price Points', 'Most Trading Areas'], default=['Key Price Points', 'Most Trading Areas'])
+            show_structure = st.multiselect("Key Price Areas", options=['Key Price Points', 'Most Trading Areas'], default=[])
             if 'Key Price Points' in show_structure:
                 st.session_state.show_fibonacci = True
                 st.session_state.show_structure = False

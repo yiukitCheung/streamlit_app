@@ -810,9 +810,9 @@ def display_user_dashboard_content(cur_alert_dict=None):
             acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
             main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
             with acc_alert_col:
-                display_alert_section("Buy !", acc_alert_symbols, "#4CAF50")
+                display_alert_section("💰 Buy!", acc_alert_symbols, "#4CAF50")
             with main_alert_col:
-                display_alert_section("Some Capital sneaking in...", main_alert_symbols, "#FFA500")
+                display_alert_section("💰 Touching Support", main_alert_symbols, "#FFA500")
             
             if acc_alert_symbols or main_alert_symbols:
                 st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
