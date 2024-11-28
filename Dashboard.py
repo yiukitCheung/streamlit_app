@@ -12,6 +12,7 @@ from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo
 from stock_candidates_analysis import DailyTradingStrategy
 from add_portfolio import existing_portfolio
 from config.mongdb_config import load_mongo_config
+import pymongo
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
@@ -407,49 +408,49 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
     return chart
 
 def fetch_key_price(symbol: str):
-    # redis_client = initialize_redis()
-    # redis_key = f"key_price_data:{symbol}"
+    redis_client = initialize_redis()
+    redis_key = f"key_price_data:{symbol}"
 
-    # try:
-    #     # Check if data is cached in Redis and deserialize in one step
-    #     if cached_data := redis_client.get(redis_key):
-    #         result = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
-    #     else:
-    # Get data from MongoDB
-    mongo_client = initialize_mongo_client()
-    key_price_collection = mongo_client[DB_NAME][LONG_TERM_ALERT_COLLECTION]
-    pipeline = [
-        {"$match": {"symbol": symbol.upper(), "interval": 5}},
-        {"$project": {
-            "close": 1,
-            "_id": 0,
-            "fib_236": {"$ifNull": [{"$getField": {"field": "fib_236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "fib_382": {"$ifNull": [{"$getField": {"field": "fib_382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "fib_618": {"$ifNull": [{"$getField": {"field": "fib_618", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "fib_786": {"$ifNull": [{"$getField": {"field": "fib_786", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "fib_1236": {"$ifNull": [{"$getField": {"field": "fib_1236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "fib_1382": {"$ifNull": [{"$getField": {"field": "fib_1382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
-            "top": {"$ifNull": [{"$getField": {"field": "top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
-            "bottom": {"$ifNull": [{"$getField": {"field": "bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
-            "second_top": {"$ifNull": [{"$getField": {"field": "second_top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
-            "second_bottom": {"$ifNull": [{"$getField": {"field": "second_bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]}
-        }},
-        {"$sort": {"date": 1}}
-        
-    ]
+    try:
+        # Check if data is cached in Redis and deserialize in one step
+        if cached_data := redis_client.get(redis_key):
+            result = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+        else:
+            # Get data from MongoDB
+            mongo_client = initialize_mongo_client()
+            key_price_collection = mongo_client[DB_NAME][LONG_TERM_ALERT_COLLECTION]
+            pipeline = [
+                {"$match": {"symbol": symbol.upper(), "interval": 5}},
+                {"$project": {
+                    "close": 1,
+                    "_id": 0,
+                    "fib_236": {"$ifNull": [{"$getField": {"field": "fib_236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "fib_382": {"$ifNull": [{"$getField": {"field": "fib_382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "fib_618": {"$ifNull": [{"$getField": {"field": "fib_618", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "fib_786": {"$ifNull": [{"$getField": {"field": "fib_786", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "fib_1236": {"$ifNull": [{"$getField": {"field": "fib_1236", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "fib_1382": {"$ifNull": [{"$getField": {"field": "fib_1382", "input": {"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}}}, None]},
+                    "top": {"$ifNull": [{"$getField": {"field": "top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+                    "bottom": {"$ifNull": [{"$getField": {"field": "bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+                    "second_top": {"$ifNull": [{"$getField": {"field": "second_top", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]},
+                    "second_bottom": {"$ifNull": [{"$getField": {"field": "second_bottom", "input": {"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}}}, None]}
+                }},
+                {"$sort": {"date": 1}}
+            
+            ]
     
-    result = pd.DataFrame(list(key_price_collection.aggregate(pipeline))).iloc[-1]
-    # # Cache the result in Redis
-    # redis_client.set(
-    #     redis_key,
-    #     result.to_json(orient="records", date_format='iso')
-    # )
-        
-    return result
+            result = pd.DataFrame(list(key_price_collection.aggregate(pipeline))).iloc[-1]
+            # Cache the result in Redis
+            redis_client.set(
+                redis_key,
+                result.to_json(orient="records", date_format='iso')
+            )
 
-    # except Exception as e:
-    #     st.error(f"Error fetching key price data: {str(e)}")
-    #     return pd.DataFrame()  # Return empty DataFrame on error
+        return result
+
+    except Exception as e:
+        st.error(f"Error fetching key price data: {str(e)}")
+        return pd.DataFrame()  # Return empty DataFrame on error
 
 def find_expected_value(symbol: str, shares: int):
     key_price_data = fetch_key_price(symbol)
@@ -818,10 +819,8 @@ def display_user_dashboard_content(cur_alert_dict=None):
                 st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
             else:
                 st.session_state['alert_symbols'] = []
-            
+
 def user_dashboard():
-    # Welcom message
-    username = (st.session_state['username']).capitalize()
     # Scrolling message of sandbox testing results
 
     scrolling_message = analyze_strategy_results()
@@ -882,6 +881,6 @@ def user_dashboard():
     most_recent_trade_date = pd.to_datetime(get_most_current_trading_date())
     candidate_collection = initialize_mongo_client()[DB_NAME][CANDI_COLLECTION]
     current_alerts_dict = list(candidate_collection.find({"date": {"$gte": most_recent_trade_date}}))
-
+    
     # Display all content
     display_user_dashboard_content(cur_alert_dict=current_alerts_dict)

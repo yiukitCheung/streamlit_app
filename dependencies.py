@@ -164,7 +164,7 @@ def get_usernames():
     except Exception as e:
         st.error(f"Error fetching usernames: {e}")
         return False
-    
+
 def get_specific_username(username):
     try:
         conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
@@ -211,7 +211,7 @@ def get_specific_phone_number(username, phone_number):
             return False
     except Exception as e:
         st.error(f"Error fetching phone numbers: {e}")
-        
+
 def validate_username(username):
     return bool(re.match(r'^[a-zA-Z0-9_]+$', username))
 

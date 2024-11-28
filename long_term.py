@@ -76,7 +76,6 @@ def fetch_stock_data(redis_client, collection, stock_symbol, interval):
         return pd.DataFrame()  # Return empty DataFrame on error
 
 def fetch_alert_data(redis_client, collection, stock_symbol, interval):
-    start_time = time.time()
     redis_key = f"alert_data:{stock_symbol}:{interval}"
     
     # Try to get cached data from Redis
