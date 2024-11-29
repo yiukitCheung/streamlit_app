@@ -445,7 +445,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
     # Create a container for the overview section
     main_container = st.container()
     with main_container:
-        col_overview, col_portfolio = st.columns([2, 1])
+        col_overview, col_portfolio = st.columns([2, 1.5])
         with col_overview:
             overview_container = st.container()
             with overview_container:
@@ -462,7 +462,6 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     instrument_options = ["Index", "Commodity", "Sector", "Bond"]
                     selected_instrument = st.selectbox("Select Instrument", options=instrument_options, key="instrument_dropdown")
                     st.session_state['instrument'] = selected_instrument.lower()  # Set session state based on selection
-
                 # Symbol selection dropdown
                 with col2:
                     if 'instrument' not in st.session_state:
@@ -511,11 +510,10 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         selected_symbol = st.selectbox("Select Symbol", options=symbols, format_func=lambda x: symbols_mapping.get(x, x))
                     except Exception as e:
                         st.error(f"Error fetching symbols: {str(e)}")
-
                 # Chart type radio buttons
                 with col3:
                     chart_type = st.selectbox("Chart Type", options=["Line Chart", "Cumulative Return", "Candlesticks"], key="chart_type")
-                    
+                
                 # Display the chart below the selection section
                 chart_layout = st.columns([1, 3])
                 
@@ -563,7 +561,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
 
                     # Display the dots with the correct color and uniform text alignment
                     st.markdown(f"""
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 35px; gap: 20px;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 45px; gap: 20px;">
                             <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[0]}; border-radius: 50%;"></div> 
                                 <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
@@ -651,155 +649,163 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                 No Portfolio Data Found
                             </div>
                         """, unsafe_allow_html=True)
-            
-    col_exp_profit_loss, col_alert_section = st.columns([5, 3])
-    
-    with col_exp_profit_loss:
-        st.markdown("""
-                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                    Stock Expected Profit/Loss
-                </div>
-        """, unsafe_allow_html=True) 
-        with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                search_stock_symbol = st.text_input("Search Stock", key="search_stock")
 
-            with col2:
-                period_options = ["Short", "Medium", "Long"]
-                period_mapping = {
-                    "Short": 3,
-                    "Medium": 5,
-                    "Long": 8
-                }
-                selected_period = st.selectbox("Period", options=period_options, key="exp_period")
-                selected_period_value = period_mapping[selected_period] 
-        if search_stock_symbol:
-            if search_stock(search_stock_symbol) != None:
-                with st.container():
-                    expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, selected_period_value)
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 5 )else "#FF0000"
-                        st.markdown(f"""
-                            <div style='color: {color}'>
-                                <p style='font-size:20px; margin-bottom:0'>Expected Return/Loss</p>
-                                <p style='font-size:24px; font-weight:bold'>{expected_profit:+,}%</p>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    with col2:
-                        color = "#4CAF50" if (expected_profit > abs(expected_loss)) and (expected_profit > 5) else "#FF0000"
-                        st.markdown(f"""
-                            <div style='color: {color}'>
-                                <p style='font-size:20px; margin-bottom:0'>Expected Risk</p>
-                                <p style='font-size:24px; font-weight:bold'>{expected_loss:+,}%</p>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    with col3:
-                        color = "#4CAF50" if profit_loss_ratio > 1 and (profit_loss_ratio > 5) else "#808080"
-                        st.markdown(f"""
-                            <div style='color: {color}'>
-                                <p style='font-size:20px; margin-bottom:0'>Profit/Loss Ratio</p>
-                                <p style='font-size:24px; font-weight:bold'>{profit_loss_ratio:+,}</p>
-                            </div>
-                        """, unsafe_allow_html=True)
-            else:
-                st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
-                if st.button("✨ Contribute New Stock", use_container_width=True):
-                    if check_symbol_yahoo(search_stock_symbol.upper()):
-                        search_stock_symbol = search_stock_symbol.upper()
-                        full_name = yf.Ticker(search_stock_symbol).info.get('longName')
-                        add_stock_to_database(search_stock_symbol, full_name)
-                        st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
-                        st.balloons()
-                    else:
-                        st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
-
-    with col_alert_section:         
-        alert_container = st.container()
-
-        with alert_container:           
-            # Display header
+    user_exp_profit_loss_placeholder = st.empty()
+    with user_exp_profit_loss_placeholder:
+        col_exp_profit_loss, col_alert_section = st.columns([4, 3])
+        
+        with col_exp_profit_loss:
             st.markdown("""
-                <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                    Opportunity Alerts
-                </div>
-            """, unsafe_allow_html=True)
+                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                        Stock Expected Profit/Loss
+                    </div>
+            """, unsafe_allow_html=True) 
+            with st.container():
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    search_stock_symbol = st.text_input("Search Stock", key="search_stock")
+                    
+                with col2:
+                    period_options = ["Short", "Medium", "Long"]
+                    period_mapping = {
+                        "Short": 3,
+                        "Medium": 5,
+                        "Long": 8
+                    }
+                    selected_period = st.selectbox("Period", options=period_options, key="exp_period")
+                    selected_period_value = period_mapping[selected_period] 
+            
+                if search_stock_symbol:
+                    if search_stock(search_stock_symbol) != None:
+                        with st.container():
+                            expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, selected_period_value)
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 5 )else "#FF0000"
+                                st.markdown(f"""
+                                    <div style='color: {color}'>
+                                        <p style='font-size:20px; margin-bottom:0'>Expected Return/Loss</p>
+                                        <p style='font-size:24px; font-weight:bold'>{expected_profit:+,}%</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                
+                            with col2:
+                                color = "#4CAF50" if (expected_profit > abs(expected_loss)) and (expected_profit > 5) else "#FF0000"
+                                st.markdown(f"""
+                                    <div style='color: {color}'>
+                                        <p style='font-size:20px; margin-bottom:0'>Expected Risk</p>
+                                        <p style='font-size:24px; font-weight:bold'>{expected_loss:+,}%</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                                
+                            with col3:
+                                color = "#4CAF50" if profit_loss_ratio > 1 and (profit_loss_ratio > 5) else "#808080"
+                                st.markdown(f"""
+                                    <div style='color: {color}'>
+                                        <p style='font-size:20px; margin-bottom:0'>Profit/Loss Ratio</p>
+                                        <p style='font-size:24px; font-weight:bold'>{profit_loss_ratio:+,}</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                        
+                    else:
+                        st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
+                        if st.button("✨ Contribute New Stock", use_container_width=True):
+                            if check_symbol_yahoo(search_stock_symbol.upper()):
+                                search_stock_symbol = search_stock_symbol.upper()
+                                full_name = yf.Ticker(search_stock_symbol).info.get('longName')
+                                add_stock_to_database(search_stock_symbol, full_name)
+                                st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
+                                st.balloons()
+                            else:
+                                st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
 
-            # Add term selection dropdown
-            selected_term = st.selectbox(
-                "Select Trading Term",
-                ["Short Term", "Mid Term", "Long Term"],
-                key="term_selector"
-            )
+        with col_alert_section:         
+            alert_container = st.container()
 
-            # Display alert section with title and results
-            def display_alert_section(title, results, badge_color):
-                st.markdown(f"""
-                    <div style="text-align: center; font-size: 18px; font-weight: bold; color: {badge_color};">
-                        {title}
+            with alert_container:           
+                # Display header
+                st.markdown("""
+                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                        Opportunity Alerts
                     </div>
                 """, unsafe_allow_html=True)
 
-                if not results:
-                    st.markdown("""
-                        <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey; min-height: 100px; display: flex; align-items: center; justify-content: center;">
-                            No Opportunity found today, bored... 😴
+                # Add term selection dropdown
+                selected_term = st.selectbox(
+                    "Select Trading Term",
+                    ["Short Term", "Mid Term", "Long Term"],
+                    key="term_selector"
+                )
+
+                # Display alert section with title and results
+                def display_alert_section(title, results, badge_color):
+                    st.markdown(f"""
+                        <div style="text-align: center; font-size: 18px; font-weight: bold; color: {badge_color};">
+                            {title}
                         </div>
                     """, unsafe_allow_html=True)
+
+                    if not results:
+                        st.markdown("""
+                            <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+                                No Opportunity found today, bored... 😴
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
+                        badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"
+                        
+                        st.markdown(f"""
+                            <style>
+                                .{container_class} {{
+                                    display: flex;
+                                    flex-wrap: wrap;
+                                    gap: 10px;
+                                    min-height: 10px;
+                                    align-items: center;
+                                    justify-content: center;
+                                }}
+                                .{badge_class} {{
+                                    background-color: {badge_color} !important;
+                                    color: white;
+                                    padding: 8px 12px;
+                                    border-radius: 5px;
+                                    font-size: 16px;
+                                    text-align: center;
+                                }}
+                            </style>
+                        """, unsafe_allow_html=True)
+
+                        st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
+                        for symbol in results:
+                            st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+
+                # Display alerts based on selected term
+                if selected_term == "Short Term":
+                    acc_alert = 'acclerating'
+                    main_alert = 'main_accumulating'
+                elif selected_term == "Mid Term":
+                    acc_alert = 'long_accumulating'
+                    main_alert = 'long_main_accumulating'
+                else:  # Long Term
+                    acc_alert = 'ext_long_accelerating'
+                    main_alert = 'ext_accumulating'
+
+                acc_alert_col, main_alert_col = st.columns(2)
+                acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
+                main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
+                with acc_alert_col:
+                    display_alert_section("💰 Buy!", acc_alert_symbols, "#4CAF50")
+                with main_alert_col:
+                    display_alert_section("💰 Possible Bounce!", main_alert_symbols, "#FFA500")
+                
+                if acc_alert_symbols or main_alert_symbols:
+                    st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
                 else:
-                    container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
-                    badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"
-                    
-                    st.markdown(f"""
-                        <style>
-                            .{container_class} {{
-                                display: flex;
-                                flex-wrap: wrap;
-                                gap: 10px;
-                                min-height: 10px;
-                                align-items: center;
-                                justify-content: center;
-                            }}
-                            .{badge_class} {{
-                                background-color: {badge_color} !important;
-                                color: white;
-                                padding: 8px 12px;
-                                border-radius: 5px;
-                                font-size: 16px;
-                                text-align: center;
-                            }}
-                        </style>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
-                    for symbol in results:
-                        st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-            # Display alerts based on selected term
-            if selected_term == "Short Term":
-                acc_alert = 'acclerating'
-                main_alert = 'main_accumulating'
-            elif selected_term == "Mid Term":
-                acc_alert = 'long_accumulating'
-                main_alert = 'long_main_accumulating'
-            else:  # Long Term
-                acc_alert = 'ext_long_accelerating'
-                main_alert = 'ext_accumulating'
-
-            acc_alert_col, main_alert_col = st.columns(2)
-            acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
-            main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
-            with acc_alert_col:
-                display_alert_section("💰 Buy!", acc_alert_symbols, "#4CAF50")
-            with main_alert_col:
-                display_alert_section("💰 Touching Support", main_alert_symbols, "#FFA500")
-            
-            if acc_alert_symbols or main_alert_symbols:
-                st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
-            else:
-                st.session_state['alert_symbols'] = []
+                    st.session_state['alert_symbols'] = []
 
 def user_dashboard():
     # Scrolling message of sandbox testing results
@@ -823,27 +829,25 @@ def user_dashboard():
                 /* Text styling and animation */
                 .marquee {
                     display: inline-block;
-                    padding-left: 1%; /* Start outside view */
+                    padding-left: 100%; /* Start outside view */
                     font-size: 18px;
                     font-weight: bold;
-                    animation: scroll 45s linear infinite; 
+                    animation: scroll 30s linear infinite; 
                 }
 
                 /* Define the scrolling animation */
                 @keyframes scroll {
-                    100% { transform: translateX(0%); } /* Start closer */
+                    100% { transform: translateX(100%); } /* Start closer */
                     100% { transform: translateX(-100%); }
                 }
                 </style>
         """, unsafe_allow_html=True)
     # Create scrolling text with metrics with colored values
     scrolling_text = (
-        f'Win Rate: <span style="color: {"#4CAF50" if scrolling_message["win_rate"] > 50 else "#FF5733"}">{scrolling_message["win_rate"]}%</span> | '
         f'Average Profit: <span style="color: #4CAF50">{scrolling_message["avg_profit"]}%</span> | '
         f'Average Loss: <span style="color: #FF5733">{scrolling_message["avg_loss"]}%</span> | '
         f'Best Trade: <span style="color: #4CAF50">{scrolling_message["best_trade"]}%</span> | '
         f'Worst Trade: <span style="color: #FF5733">{scrolling_message["worst_trade"]}%</span> | '
-        f'Total Trades: <span style="color: {"#FF5733" if scrolling_message["total_trades"] > 30 else "#FFA500"}">{scrolling_message["total_trades"]}</span>'
 
     )
     # Display scrolling marquee in Streamlit
@@ -851,7 +855,7 @@ def user_dashboard():
         f"""
         <div class="marquee-container">
             <span class="marquee">
-                CondVest 2021 Long Term Opportunity Alert: {scrolling_text}
+                CondVest Alerts Performance: {scrolling_text}
             </span>
         </div>
         """,
