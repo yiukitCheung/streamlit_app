@@ -106,7 +106,6 @@ def fetch_data(instrument, interval):
     try:
         # Check if data is cached in Redis and deserialize in one step
         if cached_data := redis_client.get(redis_key):
-            st.write('this data is cached')
             data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
         else:
             # Use MongoDB projection and sorting at database level
@@ -510,7 +509,6 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         
                         # Display selectbox with mapped options
                         selected_symbol = st.selectbox("Select Symbol", options=symbols, format_func=lambda x: symbols_mapping.get(x, x))
-                        st.write(selected_symbol)
                     except Exception as e:
                         st.error(f"Error fetching symbols: {str(e)}")
 
