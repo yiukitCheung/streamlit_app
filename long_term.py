@@ -268,7 +268,7 @@ def candle_chart(filtered_df, latest_data, alert_df):
     return fig
 
 def fundemental_chart(filtered_df):
-    st.markdown("<h3 style='text-align: center;'>Fundamentals Analysis</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center;'>Fundamentals</h3>", unsafe_allow_html=True)
 
 def display_alerts(alert_df):
     # Display Alert
@@ -417,11 +417,7 @@ def static_analysis_page(processed_col, alert_col, redis_client):
         with st.spinner("Loading data..."):
             processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, interval_selector)
             latest_data = fetch_latest_stock_data(redis_client, stock_selector)
-        fundmentals_chart, candlesticks_chart = st.columns([1, 3])
-        
-        with fundmentals_chart:
-            fundemental_chart(processed_df)
-
+        candlesticks_chart = st.container()
         with candlesticks_chart:
             # Add auto-refresh functionality
             st_autorefresh(interval=600000, key="chart")

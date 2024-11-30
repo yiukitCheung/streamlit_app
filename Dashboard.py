@@ -13,6 +13,47 @@ from analyzer import ExpectedReturnRiskAnalyzer
 from add_portfolio import existing_portfolio
 from config.mongdb_config import load_mongo_config
 
+# Define CSS for tooltips
+tooltip_css = """
+<style>
+.centered-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px; /* Adjust height as needed */
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+
+  /* Center the tooltip horizontally */
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* Position tooltip above the element */
+  bottom: 150%;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+</style>
+"""
+
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
@@ -531,7 +572,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     label_to_interval = {v: k for k, v in interval_mapping.items()}
 
                     # Slidebar for interval selection
-                    selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider')
+                    selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider', help="Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫.")
                     selected_interval = label_to_interval[selected_label]
                     cur_alert_data = alert_data[alert_data['interval'] == selected_interval].iloc[-1]['alerts']
                     
@@ -560,28 +601,30 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     ]
 
                     # Display the dots with the correct color and uniform text alignment
+                    st.markdown(tooltip_css, unsafe_allow_html=True)
                     st.markdown(f"""
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 45px; gap: 20px;">
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; position: absolute; top: 20px; right: 45px; gap: 30px;">
+                            <div class="tooltip" style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[0]}; border-radius: 50%;"></div> 
-                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
+                                <div style="width: 100px; font-size: 20px; color: #333; font-weight: bold; text-align: left;">Optimistic</div>
+                                <span class="tooltiptext">Market is maintaining its upward momentum</span>
                             </div>
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
-                                <div style="width: 15px; height: 15px; background-color: {dot_colors[4]}; border-radius: 50%;"></div> 
-                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Neutral</div>
-                            </div>
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div class="tooltip" style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[1]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Flag for Risk</div>
+                                <div style="width: 100px; font-size: 20px; color: #333; font-weight: bold; text-align: left;">Neutral</div>
+                                <span class="tooltiptext">Market is slowing down</span>
                             </div>
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div class="tooltip" style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[2]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Pessimistic</div>
+                                <div style="width: 100px; font-size: 20px; color: #333; font-weight: bold; text-align: left;">Pessimistic</div>
+                                <span class="tooltiptext">Market is losing its upward momentum</span>
                             </div>
-                            <div style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
+                            <div class="tooltip" style="display: flex; flex-direction: row; align-items: center; gap: 10px;">
                                 <div style="width: 15px; height: 15px; background-color: {dot_colors[3]}; border-radius: 50%;"></div>
-                                <div style="width: 100px; font-size: 18px; color: #333; font-weight: bold; text-align: left;">Consolidating</div>
+                                <div style="width: 100px; font-size: 20px; color: #333; font-weight: bold; text-align: left;">Consolidating</div>
+                                <span class="tooltiptext">Market is consolidating</span>
                             </div>
+                            
                         </div>
                     """, unsafe_allow_html=True)
                 with chart_layout[1]:
@@ -657,7 +700,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
         with col_exp_profit_loss:
             st.markdown("""
                     <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                        Stock Expected Profit/Loss
+                        Check The Profitability of Stock Here 🔍
                     </div>
             """, unsafe_allow_html=True) 
             with st.container():
@@ -728,7 +771,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                 # Display header
                 st.markdown("""
                     <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                        Opportunity Alerts
+                        Opportunity Alerts 💰
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -741,11 +784,18 @@ def display_user_dashboard_content(cur_alert_dict=None):
 
                 # Display alert section with title and results
                 def display_alert_section(title, results, badge_color):
+                    # Add tooltip css
+                    st.markdown(tooltip_css, unsafe_allow_html=True)
+                    # Display title
+                    message = "The buy is suggesting to buy at tomorrow's open price" if title == "💰💰💰 Buy!" else "The possible bounce is suggesting to buy at tomorrow's open price"
                     st.markdown(f"""
-                        <div style="text-align: center; font-size: 18px; font-weight: bold; color: {badge_color};">
-                            {title}
-                        </div>
-                    """, unsafe_allow_html=True)
+                                <div class="centered-container">
+                                    <div class="tooltip" style="font-size: 24px; font-weight: bold; color: {badge_color};">
+                                        {title}
+                                        <span class="tooltiptext">{message}</span>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
 
                     if not results:
                         st.markdown("""
@@ -755,7 +805,9 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         """, unsafe_allow_html=True)
                     else:
                         container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
-                        badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"
+                        badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"                        
+                        # Add tooltip css
+                        st.markdown(tooltip_css, unsafe_allow_html=True)
                         
                         st.markdown(f"""
                             <style>
