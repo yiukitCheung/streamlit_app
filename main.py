@@ -7,6 +7,13 @@ from long_term import long_term_dashboard
 from short_term import short_term_dashboard
 from settings_page import settings_page
 import redis
+import time
+from openai import OpenAI
+import json
+# OpenAI Configuration
+client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
+assistant_id = st.secrets['chatgpt']['assistant_id']
+messages = json.load(open('chat_message.json'))
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]
@@ -47,6 +54,9 @@ if "profile_verified" not in st.session_state:
     st.session_state["profile_verified"] = False
 if "alert_symbols" not in st.session_state:
     st.session_state["alert_symbols"] = []
+if "messages" not in st.session_state:
+    st.session_state["messages"] = messages
+    
 
 def login():
     st.header("Member Login")
@@ -82,12 +92,104 @@ def main():
 
     # Sidebar navigation buttons
     if st.session_state.get('logged_in'):
-        st.sidebar.button("Log Out", on_click=logout)
-        st.sidebar.button("User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
-        st.sidebar.button("Stock InDepth", on_click=lambda: st.session_state.update(current_page="Long Term"))
-        st.sidebar.button("Short Term Analysis", on_click=lambda: st.session_state.update(current_page="Short Term"))
-        st.sidebar.button("Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
-        st.sidebar.button("Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
+        st.markdown(
+                """
+                <style>
+                    div[data-testid="stButton"] button {
+                        width: 100%;
+                        margin: 5px 0;
+                        background-color: #f0f8ff;
+                        color: #2c3e50;
+                        border: 1px solid #e1e8ed;
+                        border-radius: 10px;
+                        padding: 10px;
+                        font-weight: bold;
+                        transition: all 0.3s;
+                    }
+                    div[data-testid="stButton"] button:hover {
+                        background-color: #e1e8ed;
+                        transform: translateY(-2px);
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            st.button("🚪 Log Out", on_click=logout)
+            st.button("⚙️ Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
+            st.button("📊 Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
+        with col2:
+            st.button("🏠 User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
+            st.button("📈 Stock InDepth", on_click=lambda: st.session_state.update(current_page="Long Term"))
+            st.button("⚡ Fast Money", on_click=lambda: st.session_state.update(current_page="Short Term"))
+        
+        chat_placeholder = st.sidebar.empty()
+        with chat_placeholder:
+            # Display chat header in the sidebar
+            st.sidebar.markdown("""
+                <div class="chat-header" style="
+                    text-align: center;
+                    padding: 15px;
+                    background-color: #f0f8ff;
+                    border-radius: 10px;
+                    margin: 10px 0;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                ">
+                    ✨ Condvest Advisor Chat 💬
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Create a placeholder for the chat container in the sidebar
+            chat_placeholder = st.sidebar.empty()
+
+            with chat_placeholder:
+                st.sidebar.markdown("""
+                    <div class="chat-container">
+                        <div class="chat-messages">
+                """, unsafe_allow_html=True)
+                
+                st.sidebar.markdown("</div></div>", unsafe_allow_html=True)
+                
+            # Accept user input outside the chat_placeholder
+            if prompt := st.sidebar.text_input("Ask me what is this about and how does it work?"):
+                
+                # Add user message to chat history
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                
+                # Display user message in chat message container
+                with st.sidebar.chat_message("user"):
+                    st.markdown(f"""
+                        <div style="width: 100%; word-wrap: break-word;">
+                            {prompt}
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                # Simulate assistant response (replace with actual API call logic)
+                with st.sidebar.chat_message("assistant"):
+                    condvest_advisor = client.chat.completions.create(
+                                        model="gpt-4o-mini",
+                                        messages=st.session_state.messages,
+                                        response_format={
+                                            "type": "text"
+                                        },
+                                        temperature=1,
+                                        max_tokens=2048,
+                                        top_p=1,
+                                        frequency_penalty=0,
+                                        presence_penalty=0)
+                    condvest_advisor_response = condvest_advisor.choices[0].message.content
+                    # Display assistant's response in chat message container
+                    st.markdown(f"""
+                        <div style="width: 100%; word-wrap: break-word;">
+                            {condvest_advisor_response}
+                        </div>
+                    """, unsafe_allow_html=True)
+                
     elif st.session_state['current_page'] == "Sign Up":
         st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
     elif st.session_state['current_page'] == "Forgot Password":
@@ -198,3 +300,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

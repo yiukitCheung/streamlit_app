@@ -5,6 +5,8 @@ import pandas as pd
 from pymongo import MongoClient
 from twilio.rest import Client
 import yfinance as yf
+from openai import OpenAI
+client = OpenAI(api_key=st.secrets["chatgpt"]["api_key"])
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]

@@ -12,6 +12,11 @@ from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo
 from analyzer import ExpectedReturnRiskAnalyzer
 from add_portfolio import existing_portfolio
 from config.mongdb_config import load_mongo_config
+from openai import OpenAI
+
+client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
+thread = client.beta.threads.create()  # Create a thread for the conversation
+
 
 # Define CSS for tooltips
 tooltip_css = """
@@ -692,7 +697,6 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                 No Portfolio Data Found
                             </div>
                         """, unsafe_allow_html=True)
-
     user_exp_profit_loss_placeholder = st.empty()
     with user_exp_profit_loss_placeholder:
         col_exp_profit_loss, col_alert_section = st.columns([4, 3])
