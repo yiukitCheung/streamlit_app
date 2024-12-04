@@ -455,9 +455,20 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
 
 @st.cache_data
 def find_expected_value(symbol: str, selected_period: int):
-    # Find expected support and resistance
+    # Initialize Redis connection
+    redis_client = initialize_redis()
+    cache_key = f"expected_value_{symbol}_{selected_period}"
+
+    # Try to get cached results
+    cached_result = redis_client.get(cache_key)
+    if cached_result:
+        expected_loss, expected_profit, profit_loss_ratio = map(float, cached_result.decode().split(','))
+        return expected_loss, expected_profit, profit_loss_ratio
+
+    # If not in cache, calculate values
     find_expected_value = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = find_expected_value.find_sup_res(symbol.upper(), selected_period)
+
     # Find the ema support and resistance
     for entry in expected_support:
         if entry == 'emas' and expected_support[entry] != float('-inf'):
@@ -482,35 +493,53 @@ def find_expected_value(symbol: str, selected_period: int):
             break
     
     cur_price = fetch_data('equity', 1).loc[fetch_data('equity', 1)['symbol'] == symbol.upper()].iloc[-1]['close']
-    expected_loss = round((support - cur_price) / cur_price, 2)  * 100
+    
+    expected_loss = round((support - cur_price) / cur_price, 2) * 100
     expected_profit = round((resistance - cur_price) / cur_price, 2) * 100
     profit_loss_ratio = abs(round(expected_profit / expected_loss, 2))
+
+    # Cache the results for 1 hour (3600 seconds)
+    cache_value = f"{expected_loss},{expected_profit},{profit_loss_ratio}"
+    redis_client.setex(cache_key, 3600, cache_value)
+    
     return expected_loss, expected_profit, profit_loss_ratio
 
 @st.cache_data
 def compute_portfolio_metrics(username: str):
-    # Create metric variable in users portfolio collection
+    # Try to get metrics from Redis cache first
+    redis_client = initialize_redis()
+    cache_key = f'{username}_portfolio_metrics'
+    cached_metrics = redis_client.get(cache_key)
+
+    if cached_metrics:
+        
+        metrics = json.loads(cached_metrics)
+        # Check if cache is from today
+        if metrics['date'] == pd.to_datetime('today').strftime('%Y-%m-%d'):
+            return metrics
+
+    # If not in cache or outdated, compute metrics
     collection_obj = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION]
+    
+    # Initialize metrics if not exist
     if not collection_obj.find_one({'username': username}, projection={'metrics': True, '_id': False}):
         collection_obj.update_one({'username': username}, {'$set': {'metrics': {}}})
 
-    # Compute Overall Return
-    user_portfolio = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION].find_one({'username': username}, projection={'portfolio': True, '_id': False})
+    # Get user portfolio
+    user_portfolio = collection_obj.find_one({'username': username}, projection={'portfolio': True, '_id': False})
     if not user_portfolio or 'portfolio' not in user_portfolio or not user_portfolio['portfolio']:
         return False
         
     portfolio_df = pd.DataFrame(user_portfolio['portfolio']).T
     symbol_list = portfolio_df.index.tolist()
     
-    # Get current prices for all symbols
+    # Get current prices
     current_prices = fetch_data('equity', 1)
     current_prices = current_prices[current_prices['symbol'].isin(symbol_list)]
     current_prices = current_prices.groupby('symbol')['close'].last()
     
-    # Add current prices to portfolio dataframe
+    # Process portfolio data
     portfolio_df['current_close'] = portfolio_df.index.map(current_prices)
-    
-    # Convert string values to numeric if needed
     portfolio_df['shares'] = pd.to_numeric(portfolio_df['shares'])
     portfolio_df['avg_price'] = pd.to_numeric(portfolio_df['avg_price'])
     portfolio_df['current_close'] = pd.to_numeric(portfolio_df['current_close'])
@@ -523,13 +552,10 @@ def compute_portfolio_metrics(username: str):
     
     overall_return = portfolio_df['return'].mean()
     
-    # Compute the greed index
-    # Using logarithmic function to map gains to greed index
-    # Formula: greed_index = 50 * log(1 + 2 * gain) / log(3)
+    # Calculate greed index
     greed_index = min(100, round(50 * np.log(1 + 2 * abs(overall_return)) / np.log(3), 2))
     
-    # Compute the risk index
-    # Fetch the possible downside percentage
+    # Calculate risk index
     total_possible_downside = 0
     for symbol in symbol_list:
         possible_downside = find_expected_value(symbol, 1)[0]
@@ -537,12 +563,24 @@ def compute_portfolio_metrics(username: str):
     
     risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
     
-    # Update the metrics in the users portfolio collection
-    collection_obj.update_one({'username': username}, {'$set': {'metrics': {'date': pd.to_datetime('today'), 'overall_return': overall_return, 'risk_index': risk_index, 'greed_index': greed_index}}})
+    # Prepare metrics dict
+    metrics = {
+        'date': pd.to_datetime('today').strftime('%Y-%m-%d'),
+        'overall_return': overall_return,
+        'risk_index': risk_index,
+        'greed_index': greed_index
+    }
 
-    # Store these metrics in redis cache
-    redis_client = initialize_redis()
-    redis_client.set(f'{username}_metrics', json.dumps({'date': pd.to_datetime('today').strftime('%Y-%m-%d'), 'overall_return': overall_return, 'risk_index': risk_index, 'greed_index': greed_index}))
+    # Update MongoDB
+    collection_obj.update_one(
+        {'username': username}, 
+        {'$set': {'metrics': metrics}}
+    )
+
+    # Cache in Redis for 1 hour
+    redis_client.setex(cache_key, 3600, json.dumps(metrics))
+
+    return metrics
     
 def display_user_dashboard_content(cur_alert_dict=None):
     
