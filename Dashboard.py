@@ -13,7 +13,7 @@ from analyzer import ExpectedReturnRiskAnalyzer
 from add_portfolio import existing_portfolio
 from config.mongdb_config import load_mongo_config
 from openai import OpenAI
-
+import json
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 thread = client.beta.threads.create()  # Create a thread for the conversation
 
@@ -489,16 +489,10 @@ def find_expected_value(symbol: str, selected_period: int):
 
 @st.cache_data
 def compute_portfolio_metrics(username: str):
-    # Initialize session state variables if they don't exist
-    if 'overall_return' not in st.session_state:
-        st.session_state['overall_return'] = 0
-        st.session_state['previous_overall_return'] = 0
-    if 'greed_index' not in st.session_state:
-        st.session_state['greed_index'] = 0
-        st.session_state['previous_greed_index'] = 0
-    if 'risk_index' not in st.session_state:
-        st.session_state['risk_index'] = 0
-        st.session_state['previous_risk_index'] = 0
+    # Create metric variable in users portfolio collection
+    collection_obj = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION]
+    if not collection_obj.find_one({'username': username}, projection={'metrics': True, '_id': False}):
+        collection_obj.update_one({'username': username}, {'$set': {'metrics': {}}})
 
     # Compute Overall Return
     user_portfolio = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION].find_one({'username': username}, projection={'portfolio': True, '_id': False})
@@ -543,15 +537,13 @@ def compute_portfolio_metrics(username: str):
     
     risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
     
-    # Update session state
-    st.session_state['previous_overall_return'] = st.session_state['overall_return']
-    st.session_state['previous_greed_index'] = st.session_state['greed_index']
-    st.session_state['previous_risk_index'] = st.session_state['risk_index']
-    
-    st.session_state['overall_return'] = overall_return
-    st.session_state['greed_index'] = greed_index
-    st.session_state['risk_index'] = risk_index
+    # Update the metrics in the users portfolio collection
+    collection_obj.update_one({'username': username}, {'$set': {'metrics': {'date': pd.to_datetime('today'), 'overall_return': overall_return, 'risk_index': risk_index, 'greed_index': greed_index}}})
 
+    # Store these metrics in redis cache
+    redis_client = initialize_redis()
+    redis_client.set(f'{username}_metrics', json.dumps({'date': pd.to_datetime('today').strftime('%Y-%m-%d'), 'overall_return': overall_return, 'risk_index': risk_index, 'greed_index': greed_index}))
+    
 def display_user_dashboard_content(cur_alert_dict=None):
     
     # Create a container for the overview section
@@ -731,35 +723,27 @@ def display_user_dashboard_content(cur_alert_dict=None):
                         # Layout the metrics
                         col1, col2, col3 = st.columns(3, gap="small")
                         
-                        # Fetch the delta for the greed index
-                        greed_delta = st.session_state['greed_index'] - st.session_state['previous_greed_index'] \
-                            if 'previous_greed_index' in st.session_state else 0
-                        risk_delta = st.session_state['risk_index'] - st.session_state['previous_risk_index'] \
-                            if 'previous_risk_index' in st.session_state else 0
-                        return_delta = st.session_state['overall_return'] - st.session_state['previous_overall_return'] \
-                            if 'previous_overall_return' in st.session_state else 0
+                        # Fetch the metrics from redis cache
+                        redis_client = initialize_redis()
+                        metrics = json.loads(redis_client.get(f'{st.session_state["username"]}_metrics'))
                         
                         # Display the metrics
                         with col1:
                             st.metric(
                                 label="😈 Greed Index",
-                                value=f"{st.session_state['greed_index']:,.2f}%",
-                                delta=f"{greed_delta:+,.2f}%",
+                                value=f"{metrics['greed_index']:,.2f}%",
                                 delta_color="inverse"
                             )
                         with col2:
                             st.metric(
                                 label="⚠️ Risk Index",  
-                                value=f"{st.session_state['risk_index']:,.2f}%",
-                                delta=f"{risk_delta:+,.2f}%",
+                                value=f"{metrics['risk_index']:,.2f}%",
                                 delta_color="normal"
                             )
-
                         with col3:
                             st.metric(
                                 label = "📈 Profit/Loss",
-                                value=f"{st.session_state['overall_return']:,.2f}%", 
-                                delta=f"{return_delta:+,}%",
+                                value=f"{metrics['overall_return']:,.2f}%", 
                                 delta_color="inverse"
                             )
                 # Create a container for the chart
