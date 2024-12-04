@@ -56,27 +56,6 @@ if "alert_symbols" not in st.session_state:
     st.session_state["alert_symbols"] = []
 if "messages" not in st.session_state:
     st.session_state["messages"] = messages
-    
-
-def login():
-    st.header("Member Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login", key="login"):
-        if not username or not password:
-            st.error("Please enter both username and password.")
-        else:
-            is_valid, role = verify_user(username, password)
-            if is_valid:
-                st.session_state['logged_in'] = True
-                st.session_state['username'] = username
-                st.session_state['role'] = role
-                st.session_state['current_page'] = "Dashboard" if role == 'admin' else "Main Page"
-                st.success(f"Welcome {username}!")
-                st.rerun()
-            else:
-                st.error("Invalid username or password")
 
 def logout():
     for key in ['logged_in', 'username', 'role', 'current_page']:
@@ -198,62 +177,120 @@ def main():
     placeholder = st.empty()
     with placeholder.container():
         if st.session_state['current_page'] == "Login":
-            col1, col2 = st.columns([2, 3])
+            # Display the marquee text
+            # CSS for scrolling marquee effect
+            st.markdown("""
+                <style>
+                /* Container for scrolling area */
+                .marquee-container {
+                    overflow: hidden;
+                    white-space: nowrap;
+                    background-color: #f0f8ff;
+                    padding: 10px;
+                    border-radius: 30px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+
+                /* Text styling and animation */
+                .marquee {
+                    display: inline-block;
+                    padding-left: 100%; /* Start outside view */
+                    font-size: 18px;
+                    font-weight: bold;
+                    animation: scroll 480s linear infinite; 
+                }
+
+                /* Define the scrolling animation */
+                @keyframes scroll {
+                    100% { transform: translateX(15%); } /* Start closer */
+                    100% { transform: translateX(-100%); }
+                }
+                </style>
+            """, unsafe_allow_html=True)
+
+            # Create scrolling text with conditional colors for profit/loss
+            scrolling_text = " | ".join(
+                f"<span style='color: {'#4CAF50' if item['final_profit_loss_pct'] > 0 else '#FF5733'}'>"
+                f"🚀 {item['symbol']}: Entry {item['entry_date'].strftime('%Y-%m-%d')} | Exit {item['exit_date'].strftime('%Y-%m-%d')} | "
+                f"Profit/Loss: {item['final_profit_loss_pct'] * 100:.2f}%"
+                f"</span>"
+                for item in sand_box_results if ('entry_date' in item) and ('exit_date' in item) and (item['final_profit_loss_pct'] > 0)
+            )
+            # Display scrolling marquee in Streamlit
+            st.markdown(
+                f"""
+                <div class="marquee-container">
+                    <span class="marquee">
+                        CondVest Backtest Results from 2021: {scrolling_text}
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            # Split the page into two columns
+            col1, col2 = st.columns([1, 3])
             with col1:
-                login()
-                st.button("Sign Up", on_click=lambda: st.session_state.update(current_page="Sign Up"))
-                st.button("Forgot Password?", on_click=lambda: st.session_state.update(current_page="Forgot Password"))
-                # Display the marquee text
-                # CSS for scrolling marquee effect
+                
+                # Add custom CSS for button styling
                 st.markdown("""
                     <style>
-                    /* Container for scrolling area */
-                    .marquee-container {
-                        overflow: hidden;
-                        white-space: nowrap;
-                        background-color: #f0f8ff;
-                        padding: 10px;
-                        border-radius: 30px;
+                    div.stButton > button {
                         width: 100%;
-                        box-sizing: border-box;
+                        margin: 5px 0;
+                        background-color: white;
+                        color: #4a8f4a;
+                        border-radius: 8px;
+                        border: none;
+                        padding: 10px 20px;
+                        font-weight: 900;
+                        letter-spacing: 0.5px;
+                        box-shadow: 0 4px 8px rgba(64, 224, 208, 0.2);
+                        transform: translateY(0);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        text-transform: uppercase;
+                        font-size: 14px;
                     }
-
-                    /* Text styling and animation */
-                    .marquee {
-                        display: inline-block;
-                        padding-left: 100%; /* Start outside view */
-                        font-size: 18px;
-                        font-weight: bold;
-                        animation: scroll 480s linear infinite; 
+                    div.stButton > button:hover {
+                        box-shadow: 0 8px 16px rgba(64, 224, 208, 0.3);
+                        transform: translateY(-2px);
+                        background-color: rgba(64, 224, 208, 0.05);
+                        font-weight: 900;
                     }
-
-                    /* Define the scrolling animation */
-                    @keyframes scroll {
-                        100% { transform: translateX(15%); } /* Start closer */
-                        100% { transform: translateX(-100%); }
+                    div.stButton > button:active {
+                        transform: translateY(0);
+                        box-shadow: 0 2px 4px rgba(64, 224, 208, 0.2);
                     }
                     </style>
                 """, unsafe_allow_html=True)
 
-                # Create scrolling text with conditional colors for profit/loss
-                scrolling_text = " | ".join(
-                    f"<span style='color: {'#4CAF50' if item['final_profit_loss_pct'] > 0 else '#FF5733'}'>"
-                    f"🚀 {item['symbol']}: Entry {item['entry_date'].strftime('%Y-%m-%d')} | Exit {item['exit_date'].strftime('%Y-%m-%d')} | "
-                    f"Profit/Loss: {item['final_profit_loss_pct'] * 100:.2f}%"
-                    f"</span>"
-                    for item in sand_box_results if 'entry_date' in item and 'exit_date' in item
-                )
-                # Display scrolling marquee in Streamlit
-                st.markdown(
-                    f"""
-                    <div class="marquee-container">
-                        <span class="marquee">
-                            CondVest Backtest Results from 2021: {scrolling_text}
-                        </span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                # Login section with styled header
+                st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Member Login</h2>", unsafe_allow_html=True)
+                
+                # Input fields with consistent styling
+                username = st.text_input("Username ", key="username_input") # Added space after Username to align with Password
+                password = st.text_input("Password ", type="password", key="password_input") # Added space after Password
+
+                # Login button with validation
+                if st.button("Login", key="login"):
+                    if not username or not password:
+                        st.error("Please enter both username and password.")
+                    else:
+                        is_valid, role = verify_user(username, password)
+                        if is_valid:
+                            st.session_state['logged_in'] = True
+                            st.session_state['username'] = username
+                            st.session_state['role'] = role
+                            st.session_state['current_page'] = "Dashboard" if role == 'admin' else "Main Page"
+                            st.success(f"Welcome {username}!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid username or password")
+
+                # Additional buttons with consistent styling
+                st.button("Sign Up", on_click=lambda: st.session_state.update(current_page="Sign Up"))
+                st.button("Forgot Password?", on_click=lambda: st.session_state.update(current_page="Forgot Password"))
+            
             with col2:
                 st.markdown("""
                 <div stype="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">

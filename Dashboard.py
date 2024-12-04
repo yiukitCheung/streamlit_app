@@ -454,6 +454,7 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
     
     return chart
 
+@st.cache_data
 def find_expected_value(symbol: str, selected_period: int):
     # Find expected support and resistance
     find_expected_value = ExpectedReturnRiskAnalyzer()
@@ -487,7 +488,68 @@ def find_expected_value(symbol: str, selected_period: int):
     profit_loss_ratio = abs(round(expected_profit / expected_loss, 2))
     return expected_loss, expected_profit, profit_loss_ratio
 
+@st.cache_data
+def compute_portfolio_metrics(username: str):
+    # Compute Overall Return
+    user_portfolio = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION].find_one({'username': username}, projection={'portfolio': True, '_id': False})
+    if not user_portfolio or 'portfolio' not in user_portfolio or not user_portfolio['portfolio']:
+        return False
+        
+    portfolio_df = pd.DataFrame(user_portfolio['portfolio']).T
+    symbol_list = portfolio_df.index.tolist()
+    
+    # Get current prices for all symbols
+    current_prices = fetch_data('equity', 1)
+    current_prices = current_prices[current_prices['symbol'].isin(symbol_list)]
+    current_prices = current_prices.groupby('symbol')['close'].last()
+    
+    # Add current prices to portfolio dataframe
+    portfolio_df['current_close'] = portfolio_df.index.map(current_prices)
+    
+    # Convert string values to numeric if needed
+    portfolio_df['shares'] = pd.to_numeric(portfolio_df['shares'])
+    portfolio_df['avg_price'] = pd.to_numeric(portfolio_df['avg_price'])
+    portfolio_df['current_close'] = pd.to_numeric(portfolio_df['current_close'])
+    
+    # Calculate metrics
+    portfolio_df['total_cost'] = portfolio_df['shares'] * portfolio_df['avg_price']
+    portfolio_df['current_value'] = portfolio_df['shares'] * portfolio_df['current_close']
+    portfolio_df['return'] = (portfolio_df['current_value'] - portfolio_df['total_cost']) / portfolio_df['total_cost']
+    portfolio_df['return'] = portfolio_df['return'].apply(lambda x: round(x, 2))
+    
+    overall_return = portfolio_df['return'].mean()
+    
+    # Compute the greed index
+    # Using logarithmic function to map gains to greed index
+    # Formula: greed_index = 50 * log(1 + 2 * gain) / log(3)
+    greed_index = min(100, round(50 * np.log(1 + 2 * abs(overall_return)) / np.log(3), 2))
+    
+    # Compute the risk index
+    # Fetch the possible downside percentage
+    total_possible_downside = 0
+    for symbol in symbol_list:
+        possible_downside = find_expected_value(symbol, 1)[0]
+        total_possible_downside += portfolio_df.loc[symbol, 'shares'] * possible_downside
+    
+    risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
+    
+    # Add the metrics to session state
+    if 'overall_return' not in st.session_state:
+        st.session_state['overall_return'] = overall_return
+    if 'greed_index' not in st.session_state:
+        st.session_state['greed_index'] = greed_index
+    if 'risk_index' not in st.session_state:
+        st.session_state['risk_index'] = risk_index
+    else:
+        st.session_state['previous_overall_return'] = st.session_state['overall_return']
+        st.session_state['previous_greed_index'] = st.session_state['greed_index']
+        st.session_state['previous_risk_index'] = st.session_state['risk_index']
+        st.session_state['overall_return'] = overall_return
+        st.session_state['greed_index'] = greed_index
+        st.session_state['risk_index'] = risk_index 
+    
 def display_user_dashboard_content(cur_alert_dict=None):
+    
     # Create a container for the overview section
     main_container = st.container()
     with main_container:
@@ -652,39 +714,47 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     .css-1y0tads {padding-top: 0px; padding-bottom: 0px;}
                 </style>
             """, unsafe_allow_html=True)
-            
             portfolio_container = st.container()
             with portfolio_container:
                 # Create a fixed container at the bottom for metrics
                 metrics_container = st.container()
                 with metrics_container:
                     if existing_portfolio(st.session_state['username']):
+                        # Compute the metrics
+                        compute_portfolio_metrics(st.session_state['username'])
+                        
+                        # Layout the metrics
                         col1, col2, col3 = st.columns(3, gap="small")
-                        number = np.random.randint(0, 100)
-                        delta = np.random.randint(-10, 10)
+                        
+                        # Fetch the delta for the greed index
+                        greed_delta = st.session_state['greed_index'] - st.session_state['previous_greed_index'] \
+                            if 'previous_greed_index' in st.session_state else 0
+                        risk_delta = st.session_state['risk_index'] - st.session_state['previous_risk_index'] \
+                            if 'previous_risk_index' in st.session_state else 0
+                        return_delta = st.session_state['overall_return'] - st.session_state['previous_overall_return'] \
+                            if 'previous_overall_return' in st.session_state else 0
+                        
+                        # Display the metrics
                         with col1:
                             st.metric(
                                 label="😈 Greed Index",
-                                value=f"{number:,}%",
-                                delta=f"{delta:+,}%",
+                                value=f"{st.session_state['greed_index']:,.2f}%",
+                                delta=f"{greed_delta:+,.2f}%",
                                 delta_color="inverse"
                             )
-                        number = np.random.randint(0, 100)
-                        delta = np.random.randint(-10, 10)
                         with col2:
                             st.metric(
                                 label="⚠️ Risk Index",  
-                                value=f"{number:,}%",
-                                delta=f"{delta:+,}",
+                                value=f"{st.session_state['risk_index']:,.2f}%",
+                                delta=f"{risk_delta:+,.2f}%",
                                 delta_color="normal"
                             )
-                        number = np.random.randint(0, 100)
-                        delta = np.random.randint(-10, 10)
+
                         with col3:
                             st.metric(
                                 label = "📈 Profit/Loss",
-                                value=f"{number:,}%", 
-                                delta=f"{delta:+,}",
+                                value=f"{st.session_state['overall_return']:,.2f}%", 
+                                delta=f"{return_delta:+,}%",
                                 delta_color="inverse"
                             )
                 # Create a container for the chart
