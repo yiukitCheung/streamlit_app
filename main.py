@@ -119,29 +119,33 @@ def main():
                     color: #2c3e50;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 ">
-                    ✨ Condvest Advisor Chat 💬
+                    Condvest Advisor Chat
                 </div>
             """, unsafe_allow_html=True)
 
             # Create a placeholder for the chat container in the sidebar
             chat_placeholder = st.sidebar.empty()
 
-            with chat_placeholder:
+            with chat_placeholder.container():
                 st.sidebar.markdown("""
                     <div class="chat-container">
                         <div class="chat-messages">
                 """, unsafe_allow_html=True)
-                
-                st.sidebar.markdown("</div></div>", unsafe_allow_html=True)
-                
+                            
             # Accept user input outside the chat_placeholder
-            if prompt := st.sidebar.text_input("Ask me what is this about and how does it work?"):
+            if prompt := st.sidebar.text_input("", 
+                                                placeholder="Ask me what is this about and how does it work?", 
+                                                help="Type your question here and press Enter", 
+                                                label_visibility="collapsed"):
                 
                 # Add user message to chat history
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 
+                # Create a new container for chat messages
+                chat_messages = chat_placeholder.container()
+                
                 # Display user message in chat message container
-                with st.sidebar.chat_message("user"):
+                with chat_messages.chat_message("user"):
                     st.markdown(f"""
                         <div style="width: 100%; word-wrap: break-word;">
                             {prompt}
@@ -149,14 +153,14 @@ def main():
                     """, unsafe_allow_html=True)
 
                 # Simulate assistant response (replace with actual API call logic)
-                with st.sidebar.chat_message("assistant"):
+                with chat_messages.chat_message("assistant"):
                     condvest_advisor = client.chat.completions.create(
                                         model="gpt-4o-mini",
                                         messages=st.session_state.messages,
                                         response_format={
                                             "type": "text"
                                         },
-                                        temperature=1,
+                                        temperature=0.5,
                                         max_tokens=2048,
                                         top_p=1,
                                         frequency_penalty=0,

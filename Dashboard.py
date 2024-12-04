@@ -644,7 +644,8 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     label_to_interval = {v: k for k, v in interval_mapping.items()}
 
                     # Slidebar for interval selection
-                    selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider', help="Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫.")
+                    selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider',
+                                                    help="Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫.")
                     selected_interval = label_to_interval[selected_label]
                     cur_alert_data = alert_data[alert_data['interval'] == selected_interval].iloc[-1]['alerts']
                     
@@ -805,7 +806,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                             col1, col2, col3 = st.columns(3)
                             
                             with col1:
-                                color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 5 )else "#FF0000"
+                                color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 5 ) else "#FF0000"
                                 st.markdown(f"""
                                     <div style='color: {color}'>
                                         <p style='font-size:20px; margin-bottom:0'>Expected Return/Loss</p>
