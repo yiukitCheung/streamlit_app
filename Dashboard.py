@@ -269,11 +269,10 @@ def portfolio_chart(username: str):
     # Portfolio exists and has stocks
     portfolio = portfolio['portfolio']        
     # Display each stock in the portfolio and its alert status
-    for symbol, details in portfolio.items():
+    for symbol, _ in portfolio.items():
         symbol = symbol.upper()
-        today = get_most_current_trading_date()
         # Fetch the alert for the stock
-        alert_data = alert_collection.find_one({'symbol': symbol, 'date':{'$gte': pd.to_datetime(today)}}, projection={'alerts': True, '_id': False})
+        alert_data = alert_collection.find({'symbol': symbol}).sort('date', -1).limit(1).next()
         
         if alert_data and 'velocity_alert' in alert_data['alerts']:
             velocity_alert = alert_data['alerts'].get('velocity_alert', {})
