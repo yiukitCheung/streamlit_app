@@ -490,6 +490,17 @@ def find_expected_value(symbol: str, selected_period: int):
 
 @st.cache_data
 def compute_portfolio_metrics(username: str):
+    # Initialize session state variables if they don't exist
+    if 'overall_return' not in st.session_state:
+        st.session_state['overall_return'] = 0
+        st.session_state['previous_overall_return'] = 0
+    if 'greed_index' not in st.session_state:
+        st.session_state['greed_index'] = 0
+        st.session_state['previous_greed_index'] = 0
+    if 'risk_index' not in st.session_state:
+        st.session_state['risk_index'] = 0
+        st.session_state['previous_risk_index'] = 0
+
     # Compute Overall Return
     user_portfolio = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION].find_one({'username': username}, projection={'portfolio': True, '_id': False})
     if not user_portfolio or 'portfolio' not in user_portfolio or not user_portfolio['portfolio']:
@@ -533,21 +544,15 @@ def compute_portfolio_metrics(username: str):
     
     risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
     
-    # Add the metrics to session state
-    if 'overall_return' not in st.session_state:
-        st.session_state['overall_return'] = overall_return
-    if 'greed_index' not in st.session_state:
-        st.session_state['greed_index'] = greed_index
-    if 'risk_index' not in st.session_state:
-        st.session_state['risk_index'] = risk_index
-    else:
-        st.session_state['previous_overall_return'] = st.session_state['overall_return']
-        st.session_state['previous_greed_index'] = st.session_state['greed_index']
-        st.session_state['previous_risk_index'] = st.session_state['risk_index']
-        st.session_state['overall_return'] = overall_return
-        st.session_state['greed_index'] = greed_index
-        st.session_state['risk_index'] = risk_index 
+    # Update session state
+    st.session_state['previous_overall_return'] = st.session_state['overall_return']
+    st.session_state['previous_greed_index'] = st.session_state['greed_index']
+    st.session_state['previous_risk_index'] = st.session_state['risk_index']
     
+    st.session_state['overall_return'] = overall_return
+    st.session_state['greed_index'] = greed_index
+    st.session_state['risk_index'] = risk_index
+
 def display_user_dashboard_content(cur_alert_dict=None):
     
     # Create a container for the overview section
