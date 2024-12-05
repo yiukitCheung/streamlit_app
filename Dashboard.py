@@ -248,9 +248,9 @@ def portfolio_chart(username: str):
         if "velocity_loss" in alert_data['alert_type']:
             return "red", "Pessimistic"  # Velocity loss
         elif "velocity_weak" in alert_data['alert_type']:
-            return "yellow", "Flag for Risk"  # Velocity weak 
+            return "#FFE082", "Flag for Risk"  # Velocity weak - using warmer warning yellow
         elif "velocity_negotiating" in alert_data['alert_type']:
-            return "yellow", "Flag for Risk"  # Velocity negotiating
+            return "#FFE082", "Flag for Risk"  # Velocity negotiating - using warmer warning yellow
         elif "velocity_maintained" in alert_data['alert_type']:
             return "green", "Optimistic"  # Velocity maintained
         
@@ -267,27 +267,96 @@ def portfolio_chart(username: str):
         return False
         
     # Portfolio exists and has stocks
-    portfolio = portfolio['portfolio']        
-    # Display each stock in the portfolio and its alert status
-    for symbol, _ in portfolio.items():
-        symbol = symbol.upper()
-        # Fetch the alert for the stock
-        alert_data = alert_collection.find({'symbol': symbol}).sort('date', -1).limit(1).next()
-        
-        if alert_data and 'velocity_alert' in alert_data['alerts']:
-            velocity_alert = alert_data['alerts'].get('velocity_alert', {})
-            color, status = get_alert_color(velocity_alert)
-        else:
-            color, status = "white", "No Status"  # No alert or empty alert field
-        # Display the stock symbol and the alert status with a colored dot in a scrollable container
-        st.markdown(f"""
-            <div style="max-height: 200px; overflow-y: auto; padding: 10px;">
-                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
-                    <div style="width: 20px; height: 20px; background-color: {color}; border-radius: 50%; margin-right: 10px;"></div>
-                    <div style="font-size: 18px; font-weight: bold; color: #2c3e50;">{symbol.upper()} - {status}</div>
+    portfolio = portfolio['portfolio']     
+    
+    # Create a container for the header and portfolio items
+    with st.container():
+        # Header row with interval labels
+        st.markdown(
+            """
+            <div style="display: flex; align-items: center; justify-content: center; max-width: 600px; margin: 20px auto;">
+                <div style="width: 100px; text-align: left;">
+                    <span style="font-size: 18px; font-family: 'Quicksand', 'Varela Round', sans-serif; color: #2c3e50; font-weight: 400;">Symbol</span>
+                </div>
+                <div style="width: 250px; display: flex; justify-content: space-between; margin-right: 20px;">
+                    <span style="font-size: 18px; font-family: 'Quicksand', 'Varela Round', sans-serif; color: #2c3e50; font-weight: 400;">Short</span>
+                    <span style="font-size: 18px; font-family: 'Quicksand', 'Varela Round', sans-serif; color: #2c3e50; font-weight: 400;">Mid</span>
+                    <span style="font-size: 18px; font-family: 'Quicksand', 'Varela Round', sans-serif; color: #2c3e50; font-weight: 400;">Long</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+
+            
+        # Display each stock in the portfolio and its alert status
+        for symbol, _ in portfolio.items():
+            symbol = symbol.upper()
+            alerts = alert_collection.find(
+                {
+                    'symbol': symbol,
+                    'interval': {'$in': [1, 3, 5]}
+                },
+                projection={'alerts': True, '_id': False, 'interval': True}
+            ).sort('date', -1)
+
+            # Create a dictionary to store the latest alert for each interval
+            alert_dict = {}
+            for alert in alerts:
+                interval = alert['interval']
+                if interval not in alert_dict:  # Only keep first (latest) alert per interval
+                    alert_dict[interval] = alert
+
+            short_alert_data = alert_dict.get(1, {})
+            mid_alert_data = alert_dict.get(3, {})
+            long_alert_data = alert_dict.get(5, {})
+            intervals = [
+                (short_alert_data, 'Short'),
+                (mid_alert_data, 'Mid'), 
+                (long_alert_data, 'Long')
+            ]
+            
+            dots_html = ""
+            for alert_data, interval_name in intervals:
+                if alert_data and 'velocity_alert' in alert_data['alerts']:
+                    velocity_alert = alert_data['alerts'].get('velocity_alert', {})
+                    dot_color, _ = get_alert_color(velocity_alert)
+                else:
+                    dot_color = "white"
+                dots_html += f'<div style="width: 20px; height: 20px; background-color: {dot_color}; border-radius: 75%; border: 0px solid #ccc;" title="{interval_name}"></div>'
+                
+            st.markdown(f"""
+                <div style="display: flex; align-items: center; justify-content: center; max-width: 600px; margin: 25px auto;">
+                    <div style="width: 100px;">
+                        <span style="font-size: 16px; font-weight: bold; color: #2c3e50;">{symbol}</span>
+                    </div>
+                    <div style="width: 250px; display: flex; justify-content: space-between; margin-right: 20px;">
+                        {dots_html}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        # Legend with adjusted spacing
+        st.markdown("""
+            <div style="display: flex; justify-content: center; align-items: center; margin-top: 30px; margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <div style="display: flex; align-items: center; margin-right: 20px;">
+                    <div style="width: 10px; height: 10px; background-color: green; border-radius: 50%; margin-right: 5px;"></div>
+                    <span style="font-size: 12px;">Optimistic</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-right: 20px;">
+                    <div style="width: 10px; height: 10px; background-color: #FFE082; border-radius: 50%; margin-right: 5px;"></div>
+                    <span style="font-size: 12px;">Flag for Risk</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-right: 20px;">
+                    <div style="width: 10px; height: 10px; background-color: red; border-radius: 50%; margin-right: 5px;"></div>
+                    <span style="font-size: 12px;">Pessimistic</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 10px; height: 10px; background-color: grey; border-radius: 50%; margin-right: 5px;"></div>
+                    <span style="font-size: 12px;">Neutral</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
+        
     return True
 
 def overview_chart(instrument: str, selected_symbols: str, chart_type: str, selected_interval: int):
@@ -785,8 +854,8 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                 delta_color="inverse"
                             )
                 # Create a container for the chart
-                chart_container = st.container()
-                with chart_container:
+                signal_container = st.container()
+                with signal_container:
                     user_portfolio_chart = portfolio_chart(st.session_state['username'])
                     if not user_portfolio_chart:
                         st.markdown("""
@@ -794,6 +863,7 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                 No Portfolio Data Found
                             </div>
                         """, unsafe_allow_html=True)
+    
     user_exp_profit_loss_placeholder = st.empty()
     with user_exp_profit_loss_placeholder:
         col_exp_profit_loss, col_alert_section = st.columns([4, 3])
