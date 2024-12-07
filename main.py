@@ -20,6 +20,8 @@ user = st.secrets["postgres"]["user"]
 host = st.secrets['postgres']['host']
 port = st.secrets['postgres']['port']
 
+st.session_state['role']
+
 # MongoDB Config
 URL = st.secrets['mongo']['host']
 DB_NAME = st.secrets['mongo']['db_name']
@@ -272,8 +274,8 @@ def main():
                 st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Member Login</h2>", unsafe_allow_html=True)
                 
                 # Input fields with consistent styling
-                username = st.text_input("Username ", key="username_input") # Added space after Username to align with Password
-                password = st.text_input("Password ", type="password", key="password_input") # Added space after Password
+                username = st.text_input("Username ", key="username_input", placeholder="admin") # Added space after Username to align with Password
+                password = st.text_input("Password ", type="password", key="password_input", placeholder="1234") # Added space after Password
 
                 # Login button with validation
                 if st.button("Login", key="login"):
@@ -285,7 +287,7 @@ def main():
                             st.session_state['logged_in'] = True
                             st.session_state['username'] = username
                             st.session_state['role'] = role
-                            st.session_state['current_page'] = "Dashboard" if role == 'admin' else "Main Page"
+                            st.session_state['current_page'] = "Main Page"
                             st.success(f"Welcome {username}!")
                             st.rerun()
                         else:

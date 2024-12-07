@@ -427,10 +427,10 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
 
         # Update y-axis properties with padding
         candlestick_chart.update_yaxes(
-            range=[min(filtered_df.loc[:,'close']) * 0.9, max(filtered_df.loc[:,'close']) * 1.1],  # Adjust the range to add padding
+            range=[min(filtered_df.loc[:,'close']) * 0.9, max(filtered_df.loc[:,'close']) * 1.1], 
             title='Value',
-            showgrid=True,  # Optional: show gridlines for better readability
-            zeroline=True  # Optional: show a zero line if needed
+            showgrid=True,  
+            zeroline=True 
         )
         
         # Update layout to include range selector but without the range slider
@@ -537,16 +537,16 @@ def find_expected_value(symbol: str, selected_period: int):
     # If not in cache, calculate values
     find_expected_value = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = find_expected_value.find_sup_res(symbol.upper(), selected_period)
-
+    
     # Find the ema support and resistance
     for entry in expected_support:
         if entry == 'emas' and expected_support[entry] != float('-inf'):
             support = expected_support[entry]
             break
-        elif entry == 'dense_area' and expected_support[entry] != float('-inf'):
+        elif entry == 'fibonacci' and expected_support[entry] != float('-inf'):
             support = expected_support[entry]
             break
-        elif entry == 'fibonacci' and expected_support[entry] != float('-inf'):
+        elif entry == 'dense_area' and expected_support[entry] != float('-inf'):
             support = expected_support[entry]
             break
         
@@ -554,10 +554,10 @@ def find_expected_value(symbol: str, selected_period: int):
         if entry == 'emas' and expected_resistance[entry] != float('inf'):
             resistance = expected_resistance[entry]
             break
-        elif entry == 'dense_area' and expected_resistance[entry] != float('inf'):
+        elif entry == 'fibonacci' and expected_resistance[entry] != float('inf'):
             resistance = expected_resistance[entry]
             break
-        elif entry == 'fibonacci' and expected_resistance[entry] != float('inf'):
+        elif entry == 'dense_area' and expected_resistance[entry] != float('inf'):
             resistance = expected_resistance[entry]
             break
     
@@ -881,11 +881,12 @@ def display_user_dashboard_content(cur_alert_dict=None):
                     search_stock_symbol = st.text_input("Search Stock", key="search_stock")
                     
                 with col2:
-                    period_options = ["Short", "Medium", "Long"]
+                    period_options = ["In Week", "In 2 Weeks", "In Month", "In 3 Months"]
                     period_mapping = {
-                        "Short": 3,
-                        "Medium": 5,
-                        "Long": 8
+                        "In Week": 1,
+                        "In 2 Weeks": 3,
+                        "In Month": 5,
+                        "In 3 Months": 8
                     }
                     selected_period = st.selectbox("Period", options=period_options, key="exp_period")
                     selected_period_value = period_mapping[selected_period] 
