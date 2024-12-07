@@ -20,8 +20,6 @@ user = st.secrets["postgres"]["user"]
 host = st.secrets['postgres']['host']
 port = st.secrets['postgres']['port']
 
-st.session_state['role']
-
 # MongoDB Config
 URL = st.secrets['mongo']['host']
 DB_NAME = st.secrets['mongo']['db_name']
