@@ -14,6 +14,8 @@ from add_portfolio import existing_portfolio
 from config.mongdb_config import load_mongo_config
 from openai import OpenAI
 import json
+import streamlit_vertical_slider as svs
+
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 thread = client.beta.threads.create()  # Create a thread for the conversation
 
@@ -537,6 +539,8 @@ def find_expected_value(symbol: str, selected_period: int):
     # If not in cache, calculate values
     find_expected_value = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = find_expected_value.find_sup_res(symbol.upper(), selected_period)
+    if not expected_support or not expected_resistance:
+        return 0, 0, 0
     
     # Find the ema support and resistance
     for entry in expected_support:
@@ -563,8 +567,8 @@ def find_expected_value(symbol: str, selected_period: int):
     
     cur_price = fetch_data('equity', 1).loc[fetch_data('equity', 1)['symbol'] == symbol.upper()].iloc[-1]['close']
     
-    expected_loss = round((support - cur_price) / cur_price, 2) * 100
-    expected_profit = round((resistance - cur_price) / cur_price, 2) * 100
+    expected_loss = float(f"{((support - cur_price) / cur_price) * 100:,.2f}")
+    expected_profit = float(f"{((resistance - cur_price) / cur_price) * 100:,.2f}")
     profit_loss_ratio = abs(round(expected_profit / expected_loss, 2))
 
     # Cache the results for 1 hour (3600 seconds)
@@ -575,21 +579,20 @@ def find_expected_value(symbol: str, selected_period: int):
 
 @st.cache_data
 def compute_portfolio_metrics(username: str):
-    # Try to get metrics from Redis cache first
-    redis_client = initialize_redis()
-    cache_key = f'{username}_portfolio_metrics'
-    cached_metrics = redis_client.get(cache_key)
-
-    if cached_metrics:
-        
-        metrics = json.loads(cached_metrics)
-        # Check if cache is from today
-        if metrics['date'] == pd.to_datetime('today').strftime('%Y-%m-%d'):
-            return metrics
-
-    # If not in cache or outdated, compute metrics
+    
+    # Initialize MongoDB connection
     collection_obj = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION]
     
+    # Initialize Redis connection
+    redis_client = initialize_redis()
+    cache_key = f"portfolio_metrics_{username}"
+
+    # Try to get cached results
+    cached_result = redis_client.get(cache_key)
+    if cached_result:
+        metrics = json.loads(cached_result.decode())
+        return metrics
+
     # Initialize metrics if not exist
     if not collection_obj.find_one({'username': username}, projection={'metrics': True, '_id': False}):
         collection_obj.update_one({'username': username}, {'$set': {'metrics': {}}})
@@ -637,7 +640,7 @@ def compute_portfolio_metrics(username: str):
         'date': pd.to_datetime('today').strftime('%Y-%m-%d'),
         'overall_return': overall_return,
         'risk_index': risk_index,
-        'greed_index': greed_index
+        'greed_index': greed_index,
     }
 
     # Update MongoDB
@@ -646,7 +649,7 @@ def compute_portfolio_metrics(username: str):
         {'$set': {'metrics': metrics}}
     )
 
-    # Cache in Redis for 1 hour
+    # Cache the results for 1 hour (3600 seconds)
     redis_client.setex(cache_key, 3600, json.dumps(metrics))
 
     return metrics
@@ -825,34 +828,33 @@ def display_user_dashboard_content(cur_alert_dict=None):
                 with metrics_container:
                     if existing_portfolio(st.session_state['username']):
                         # Compute the metrics
-                        compute_portfolio_metrics(st.session_state['username'])
+                        metrics = compute_portfolio_metrics(st.session_state['username'])
                         
                         # Layout the metrics
                         col1, col2, col3 = st.columns(3, gap="small")
                         
-                        # Fetch the metrics from redis cache
-                        redis_client = initialize_redis()
-                        metrics = json.loads(redis_client.get(f'{st.session_state["username"]}_metrics'))
-                        
                         # Display the metrics
                         with col1:
-                            st.metric(
-                                label="😈 Greed Index",
-                                value=f"{metrics['greed_index']:,.2f}%",
-                                delta_color="inverse"
-                            )
+                            st.markdown(f"""
+                                <div style='text-align: center'>
+                                    <div style='font-size: 0.8em; color: #666'>😈 Greed Index</div>
+                                    <div style='font-size: 1.8em; font-weight: bold; color: {'#2ecc71' if metrics['greed_index'] < 50 else '#e74c3c'}'>{metrics['greed_index']:,.0f}/100</div>
+                                </div>
+                                """, unsafe_allow_html=True)
                         with col2:
-                            st.metric(
-                                label="⚠️ Risk Index",  
-                                value=f"{metrics['risk_index']:,.2f}%",
-                                delta_color="normal"
-                            )
+                            st.markdown(f"""
+                                <div style='text-align: center'>
+                                    <div style='font-size: 0.8em; color: #666'>⚠️ Risk Index</div>
+                                    <div style='font-size: 1.8em; font-weight: bold; color: {'#2ecc71' if metrics['risk_index'] < 33 else '#f39c12' if metrics['risk_index'] < 66 else '#e74c3c'}'>{metrics['risk_index']:,.0f}/100</div>
+                                </div>
+                                """, unsafe_allow_html=True)
                         with col3:
-                            st.metric(
-                                label = "📈 Profit/Loss",
-                                value=f"{metrics['overall_return']:,.2f}%", 
-                                delta_color="inverse"
-                            )
+                            st.markdown(f"""
+                                <div style='text-align: center'>
+                                    <div style='font-size: 0.8em; color: #666'>📈 Profit/Loss</div>
+                                    <div style='font-size: 1.8em; font-weight: bold; color: {'#2ecc71' if metrics['overall_return'] > 0 else '#e74c3c'}'>{metrics['overall_return']:,.2f}%</div>
+                                </div>
+                                """, unsafe_allow_html=True)
                 # Create a container for the chart
                 signal_container = st.container()
                 with signal_container:
@@ -864,172 +866,202 @@ def display_user_dashboard_content(cur_alert_dict=None):
                             </div>
                         """, unsafe_allow_html=True)
     
-    user_exp_profit_loss_placeholder = st.empty()
-    with user_exp_profit_loss_placeholder:
+    user_exp_profit_loss_container = st.container()
+    with user_exp_profit_loss_container:
         col_exp_profit_loss, col_alert_section = st.columns([4, 3])
         
-        with col_exp_profit_loss:
-            st.markdown("""
-                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                        Check The Profitability of Stock Here 🔍
-                    </div>
-            """, unsafe_allow_html=True) 
-            with st.container():
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    search_stock_symbol = st.text_input("Search Stock", key="search_stock")
-                    
-                with col2:
-                    period_options = ["In Week", "In 2 Weeks", "In Month", "In 3 Months"]
-                    period_mapping = {
-                        "In Week": 1,
-                        "In 2 Weeks": 3,
-                        "In Month": 5,
-                        "In 3 Months": 8
-                    }
-                    selected_period = st.selectbox("Period", options=period_options, key="exp_period")
-                    selected_period_value = period_mapping[selected_period] 
+        # Create a container for the profit/loss analysis section
+        profit_loss_container = st.container()
+        with profit_loss_container:
+            col_exp_profit_loss, col_alert_section = st.columns([4, 3])
             
-                if search_stock_symbol:
-                    if search_stock(search_stock_symbol) != None:
-                        with st.container():
-                            expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, selected_period_value)
-                            col1, col2, col3 = st.columns(3)
-                            
-                            with col1:
-                                color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 5 ) else "#FF0000"
-                                st.markdown(f"""
-                                    <div style='color: {color}'>
-                                        <p style='font-size:20px; margin-bottom:0'>Expected Return/Loss</p>
-                                        <p style='font-size:24px; font-weight:bold'>{expected_profit:+,}%</p>
-                                    </div>
-                                """, unsafe_allow_html=True)
+            with col_exp_profit_loss:
+                st.markdown("""
+                        <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                            Check The Profitability of Stock Here 🔍
+                        </div>
+                """, unsafe_allow_html=True) 
+                with st.container():
+                    search_stock_symbol = st.text_input("Search Stock", key="search_stock", help="A decent stock should have Profit/Loss ratio of 1 or more")
+                    
+                    if search_stock_symbol:
+                        if search_stock(search_stock_symbol) != None:
+                            with st.container():
+                                # Calculate metrics for all periods
+                                periods = {
+                                    "In Week": 1,
+                                    "In Month": 5, 
+                                    "In 3 Months": 13
+                                }
                                 
-                            with col2:
-                                color = "#4CAF50" if (expected_profit > abs(expected_loss)) and (expected_profit > 5) else "#FF0000"
-                                st.markdown(f"""
-                                    <div style='color: {color}'>
-                                        <p style='font-size:20px; margin-bottom:0'>Expected Risk</p>
-                                        <p style='font-size:24px; font-weight:bold'>{expected_loss:+,}%</p>
-                                    </div>
-                                """, unsafe_allow_html=True)
+                                # Create columns for each period
+                                period_cols = st.columns(len(periods))
                                 
-                            with col3:
-                                color = "#4CAF50" if profit_loss_ratio > 1 and (profit_loss_ratio > 5) else "#808080"
-                                st.markdown(f"""
-                                    <div style='color: {color}'>
-                                        <p style='font-size:20px; margin-bottom:0'>Profit/Loss Ratio</p>
-                                        <p style='font-size:24px; font-weight:bold'>{profit_loss_ratio:+,}</p>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                        
+                                toggle_slider = st.slider("💰 Investment Amount ($)", min_value=100, max_value=10000, value=100, step=1000, key=f"toggle_{search_stock_symbol}")
+                                # Display metrics for each period in columns
+                                for (period_name, period_value), col in zip(periods.items(), period_cols):
+                                    with col:
+                                        st.markdown(f"""
+                                            <div style="text-align: center; font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px;">
+                                                {period_name}
+                                            </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, period_value)
+                                        
+                                        # Expected Earnings        
+                                        expected_earnings = expected_profit / 100 * toggle_slider
+
+                                        color = "#4CAF50" if expected_profit > abs(expected_loss) and (expected_profit > 1.5) else "#FF0000"
+                                        st.markdown(f"""
+                                            <div style='display: flex; justify-content: space-around;'>
+                                                <div style='color: {color}; text-align: center;'>
+                                                    <p style='font-size:16px; margin-bottom:0'>Return %</p>
+                                                    <p style='font-size:20px; font-weight:bold'>{expected_profit:+,}%</p>
+                                                </div>
+                                                <div style='color: {color}; text-align: center;'>
+                                                    <p style='font-size:16px; margin-bottom:0'>Earnings $</p>
+                                                    <p style='font-size:20px; font-weight:bold'>${expected_earnings:+,.2f}</p>
+                                                </div>
+                                            </div>
+                                        """, unsafe_allow_html=True)
+                                        # Expected Risk
+                                        expected_risk = expected_loss / 100 * toggle_slider
+                                        color = "#4CAF50" if (expected_profit > abs(expected_loss)) and (expected_profit > 1.5) else "#FF0000"
+                                        st.markdown(f"""
+                                            <div style='display: flex; justify-content: space-around;'>
+                                                <div style='color: {color}; text-align: center;'>
+                                                    <p style='font-size:16px; margin-bottom:0'>Risk %</p>
+                                                    <p style='font-size:20px; font-weight:bold'>{expected_loss:+,}%</p>
+                                                </div>
+                                                <div style='color: {color}; text-align: center;'>
+                                                    <p style='font-size:16px; margin-bottom:0'>Risk $</p>
+                                                    <p style='font-size:20px; font-weight:bold'>${expected_risk:+,.2f}</p>
+                                                </div>
+                                            </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        # Profit/Loss Ratio
+                                        color = "#4CAF50" if profit_loss_ratio > 1 and (profit_loss_ratio > 1.5) else "#808080"
+                                        st.markdown(f"""
+                                            <div style='color: {color}; text-align: center;'>
+                                                <p style='font-size:16px; margin-bottom:0'>Profit/Loss Ratio</p>
+                                                <p style='font-size:20px; font-weight:bold'>{profit_loss_ratio:+,}</p>
+                                            </div>
+                                        """, unsafe_allow_html=True)
+   
+
                     else:
                         st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
                         if st.button("✨ Contribute New Stock", use_container_width=True):
                             if check_symbol_yahoo(search_stock_symbol.upper()):
                                 search_stock_symbol = search_stock_symbol.upper()
                                 full_name = yf.Ticker(search_stock_symbol).info.get('longName')
-                                add_stock_to_database(search_stock_symbol, full_name)
-                                st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
-                                st.balloons()
+                                if add_stock_to_database(search_stock_symbol, full_name):
+                                    st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
+                                    st.balloons()
+                                else:
+                                    st.warning("😔 Sorry, there is a system error, please try again later.")
                             else:
                                 st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
 
-        with col_alert_section:         
-            alert_container = st.container()
+        # Create a container for the alerts section
+        alerts_container = st.container()
+        with alerts_container:
+            with col_alert_section:         
+                alert_container = st.container()
 
-            with alert_container:           
-                # Display header
-                st.markdown("""
-                    <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
-                        Opportunity Alerts 💰
-                    </div>
-                """, unsafe_allow_html=True)
+                with alert_container:           
+                    # Display header
+                    st.markdown("""
+                        <div style="text-align: center; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                            Opportunity Alerts 💰
+                        </div>
+                    """, unsafe_allow_html=True)
 
-                # Add term selection dropdown
-                selected_term = st.selectbox(
-                    "Select Trading Term",
-                    ["Short Term", "Mid Term", "Long Term"],
-                    key="term_selector"
-                )
+                    # Add term selection dropdown
+                    selected_term = st.selectbox(
+                        "Select Trading Term",
+                        ["Short Term", "Mid Term", "Long Term"],
+                        key="term_selector"
+                    )
 
-                # Display alert section with title and results
-                def display_alert_section(title, results, badge_color):
-                    # Add tooltip css
-                    st.markdown(tooltip_css, unsafe_allow_html=True)
-                    # Display title
-                    message = "The buy is suggesting to buy at tomorrow's open price" if title == "💰💰💰 Buy!" else "The possible bounce is suggesting to buy at tomorrow's open price"
-                    st.markdown(f"""
-                                <div class="centered-container">
-                                    <div class="tooltip" style="font-size: 24px; font-weight: bold; color: {badge_color};">
-                                        {title}
-                                        <span class="tooltiptext">{message}</span>
-                                    </div>
-                                </div>
-                            """, unsafe_allow_html=True)
-
-                    if not results:
-                        st.markdown("""
-                            <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey; min-height: 100px; display: flex; align-items: center; justify-content: center;">
-                                No Opportunity found today, bored... 😴
-                            </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
-                        badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"                        
+                    # Display alert section with title and results
+                    def display_alert_section(title, results, badge_color):
                         # Add tooltip css
                         st.markdown(tooltip_css, unsafe_allow_html=True)
-                        
+                        # Display title
+                        message = "Worth a try" if title == "💰 Buy!" else "Could be a bounce this week"
                         st.markdown(f"""
-                            <style>
-                                .{container_class} {{
-                                    display: flex;
-                                    flex-wrap: wrap;
-                                    gap: 10px;
-                                    min-height: 10px;
-                                    align-items: center;
-                                    justify-content: center;
-                                }}
-                                .{badge_class} {{
-                                    background-color: {badge_color} !important;
-                                    color: white;
-                                    padding: 8px 12px;
-                                    border-radius: 5px;
-                                    font-size: 16px;
-                                    text-align: center;
-                                }}
-                            </style>
-                        """, unsafe_allow_html=True)
+                                    <div class="centered-container">
+                                        <div class="tooltip" style="font-size: 24px; font-weight: bold; color: {badge_color};">
+                                            {title}
+                                            <span class="tooltiptext">{message}</span>
+                                        </div>
+                                    </div>
+                                """, unsafe_allow_html=True)
 
-                        st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
-                        for symbol in results:
-                            st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                        if not results:
+                            st.markdown("""
+                                <div style="text-align: center; font-size: 14px; font-weight: bold; color: grey; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+                                    No Opportunity found today, bored... 😴
+                                </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            container_class = "buy-container" if badge_color == "#4CAF50" else "sell-container"
+                            badge_class = "buy-badge" if badge_color == "#4CAF50" else "sell-badge"                        
+                            # Add tooltip css
+                            st.markdown(tooltip_css, unsafe_allow_html=True)
+                            
+                            st.markdown(f"""
+                                <style>
+                                    .{container_class} {{
+                                        display: flex;
+                                        flex-wrap: wrap;
+                                        gap: 10px;
+                                        min-height: 10px;
+                                        align-items: center;
+                                        justify-content: center;
+                                    }}
+                                    .{badge_class} {{
+                                        background-color: {badge_color} !important;
+                                        color: white;
+                                        padding: 8px 12px;
+                                        border-radius: 5px;
+                                        font-size: 16px;
+                                        text-align: center;
+                                    }}
+                                </style>
+                            """, unsafe_allow_html=True)
 
-                # Display alerts based on selected term
-                if selected_term == "Short Term":
-                    acc_alert = 'acclerating'
-                    main_alert = 'main_accumulating'
-                elif selected_term == "Mid Term":
-                    acc_alert = 'long_accumulating'
-                    main_alert = 'long_main_accumulating'
-                else:  # Long Term
-                    acc_alert = 'ext_long_accelerating'
-                    main_alert = 'ext_accumulating'
+                            st.markdown(f'<div class="{container_class}">', unsafe_allow_html=True)
+                            for symbol in results:
+                                st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
 
-                acc_alert_col, main_alert_col = st.columns(2)
-                acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
-                main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
-                with acc_alert_col:
-                    display_alert_section("💰 Buy!", acc_alert_symbols, "#4CAF50")
-                with main_alert_col:
-                    display_alert_section("💰 Possible Bounce!", main_alert_symbols, "#FFA500")
-                
-                if acc_alert_symbols or main_alert_symbols:
-                    st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
-                else:
-                    st.session_state['alert_symbols'] = []
+                    # Display alerts based on selected term
+                    if selected_term == "Short Term":
+                        acc_alert = 'acclerating'
+                        main_alert = 'main_accumulating'
+                    elif selected_term == "Mid Term":
+                        acc_alert = 'long_accumulating'
+                        main_alert = 'long_main_accumulating'
+                    else:  # Long Term
+                        acc_alert = 'ext_long_accelerating'
+                        main_alert = 'ext_accumulating'
+
+                    acc_alert_col, main_alert_col = st.columns(2)
+                    acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
+                    main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
+                    with acc_alert_col:
+                        display_alert_section("💰 Buy!", acc_alert_symbols, "#4CAF50")
+                    with main_alert_col:
+                        display_alert_section("💰 Possible Bounce!", main_alert_symbols, "#FFA500")
+                    
+                    if acc_alert_symbols or main_alert_symbols:
+                        st.session_state['alert_symbols'] = acc_alert_symbols + main_alert_symbols
+                    else:
+                        st.session_state['alert_symbols'] = []
 
 def user_dashboard():
     # Scrolling message of sandbox testing results

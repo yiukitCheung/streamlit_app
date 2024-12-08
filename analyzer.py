@@ -442,16 +442,23 @@ class ExpectedReturnRiskAnalyzer:
         Returns:
         list: A list containing the alert data.
         """
-        lst = list(MongoClient(self.mongo_url)[self.db_name][self.collection_name]\
-            .find({'symbol': symbol, 'interval': {'$gte': interval}},{'_id': 0})\
+        try:
+            lst = list(MongoClient(self.mongo_url)[self.db_name][self.collection_name]\
+                .find({'symbol': symbol, 'interval': {'$gte': interval}},{'_id': 0})\
                 .sort([('date', DESCENDING), ('interval', DESCENDING)])\
                     .limit(20))
+        except Exception as e:
+            st.error(f"Error fetching long term alerts for {symbol}: {e}")
+            return []
         
         return lst
 
     def get_all_possible_values(self, symbol='AAPL', interval=1):    
         # Fetch alert data for the symbol
         long_term_alerts_dict = self.fetch_long_term_alerts(symbol, interval)
+        if len(long_term_alerts_dict) == 0:
+            st.warning(f"No Data found for {symbol} yet, you probably just contributed this stock!")
+            return False, False
         
         # Get daily alerts and current price
         daily_alert_dict = [entry for entry in long_term_alerts_dict if entry['interval'] == interval]
@@ -503,6 +510,9 @@ class ExpectedReturnRiskAnalyzer:
 
     def find_sup_res(self, symbol='AAPL', interval=1):
         available_point, close_price = self.get_all_possible_values(symbol, interval)
+        if not available_point or not close_price:
+            return False, False
+        
         expected_support = {}
         expected_resistance = {}
 

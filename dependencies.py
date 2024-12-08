@@ -308,6 +308,9 @@ def search_stock(symbol: str):
 def add_stock_to_database(symbol: str, full_name: str):
     try:
         symbol = symbol.upper()
+        # Escape single quotes in the full_name by replacing ' with ''
+        full_name = full_name.replace("'", "''")
+        
         client = psycopg2.connect(
             host=st.secrets['postgres']['host'],
             database=st.secrets['postgres']['db_name_postgres'],
@@ -315,14 +318,29 @@ def add_stock_to_database(symbol: str, full_name: str):
             password=st.secrets['postgres']['password']
         )
         cursor = client.cursor()
-        cursor.execute(f"INSERT INTO stock (symbol, name, instrument_type) VALUES ('{symbol}', '{full_name}', 'equity')")
+        
+        # Check if the stock already exists in the database
+        cursor.execute("SELECT * FROM stock WHERE symbol = %s", (symbol,))
+        existing_stock = cursor.fetchone()
+        if existing_stock:
+            st.warning(f"Stock {symbol} already exists in the database")
+            return False
+        
+        # Use parameterized query to safely handle special characters
+        cursor.execute(
+            "INSERT INTO stock (symbol, name, instrument_type) VALUES (%s, %s, %s)",
+            (symbol, full_name, 'equity')
+        )
+        
         client.commit()
         cursor.close()
         client.close()
         st.success(f"Stock {symbol} added to database")
+        return True
     except Exception as e:
         st.error(f"Error adding stock {symbol} to database: {e}")
-
+        return False
+    
 def check_symbol_yahoo(symbol):
     try:
         ticker = yf.Ticker(symbol)
