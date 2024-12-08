@@ -951,19 +951,19 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                         """, unsafe_allow_html=True)
    
 
-                    else:
-                        st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
-                        if st.button("✨ Contribute New Stock", use_container_width=True):
-                            if check_symbol_yahoo(search_stock_symbol.upper()):
-                                search_stock_symbol = search_stock_symbol.upper()
-                                full_name = yf.Ticker(search_stock_symbol).info.get('longName')
-                                if add_stock_to_database(search_stock_symbol, full_name):
-                                    st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
-                                    st.balloons()
+                        else:
+                            st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
+                            if st.button("✨ Contribute New Stock", use_container_width=True):
+                                if check_symbol_yahoo(search_stock_symbol.upper()):
+                                    search_stock_symbol = search_stock_symbol.upper()
+                                    full_name = yf.Ticker(search_stock_symbol).info.get('longName')
+                                    if add_stock_to_database(search_stock_symbol, full_name):
+                                        st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
+                                        st.balloons()
+                                    else:
+                                        st.warning("😔 Sorry, there is a system error, please try again later.")
                                 else:
-                                    st.warning("😔 Sorry, there is a system error, please try again later.")
-                            else:
-                                st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
+                                    st.warning("😔 Sorry, this stock is not available on Market, is it a typo?")
 
         # Create a container for the alerts section
         alerts_container = st.container()
