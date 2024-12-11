@@ -15,6 +15,7 @@ from config.mongdb_config import load_mongo_config
 from openai import OpenAI
 import json
 import streamlit_vertical_slider as svs
+from redis import Redis
 
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 thread = client.beta.threads.create()  # Create a thread for the conversation
@@ -104,10 +105,19 @@ def initialize_mongo_client():
 
 @st.cache_resource
 def initialize_redis():
+    """Initialize Redis connection with error handling"""
     try:
-        return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+        redis_client = Redis(
+            host=st.secrets["redis"]["host"],
+            port=st.secrets["redis"]["port"],
+            password=st.secrets["redis"]["password"],
+            decode_responses=True  # This ensures responses are decoded to strings
+        )
+        # Test the connection
+        redis_client.ping()
+        return redis_client
     except Exception as e:
-        st.error(f"Error initializing Redis client: {e}")
+        st.error(f"Redis connection error: {e}")
         return None
 
 @st.cache_data
