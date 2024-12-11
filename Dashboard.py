@@ -534,30 +534,14 @@ def overview_chart(instrument: str, selected_symbols: str, chart_type: str, sele
     
     return chart
 
-@st.cache_data
-def find_expected_value(symbol: str, selected_period: int):
-    # Initialize Redis connection
-    redis_client = initialize_redis()
-    cache_key = f"expected_value_{symbol}_{selected_period}"
-    live_cached_key = f"live_trade:{symbol}"
-    
-    # Try to get cached results, prioritizing live data
-    cached_live_result = redis_client.get(live_cached_key)
-    cached_result = redis_client.get(cache_key)
-    
-    if cached_live_result:
-        expected_loss, expected_profit, profit_loss_ratio = map(float, cached_live_result.decode().split(','))
-        return expected_loss, expected_profit, profit_loss_ratio
-        
-    elif cached_result:
-        expected_loss, expected_profit, profit_loss_ratio = map(float, cached_result.decode().split(','))
-        return expected_loss, expected_profit, profit_loss_ratio
-
-    # If not in cache, calculate values
+def calculate_expected_value(symbol: str, selected_period: int):
+    """Separate function for the actual calculation logic"""
     exp_return_risk_analyzer = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = exp_return_risk_analyzer.find_sup_res(symbol.upper(), selected_period)
+    
     if not expected_support or not expected_resistance:
         return 0, 0, 0
+    
     # Find the ema support and resistance
     for entry in expected_support:
         if entry == 'emas' and expected_support[entry] != float('-inf'):
@@ -569,7 +553,7 @@ def find_expected_value(symbol: str, selected_period: int):
         elif entry == 'dense_area' and expected_support[entry] != float('-inf'):
             support = expected_support[entry]
             break
-        
+    
     for entry in expected_resistance:
         if entry == 'emas' and expected_resistance[entry] != float('inf'):
             resistance = expected_resistance[entry]
@@ -581,17 +565,69 @@ def find_expected_value(symbol: str, selected_period: int):
             resistance = expected_resistance[entry]
             break
     
-    
     cur_price = fetch_data('equity', 1).loc[fetch_data('equity', 1)['symbol'] == symbol.upper()].iloc[-1]['close']
     
-    expected_loss = float(f"{((support - cur_price) / cur_price) * 100:,.2f}")
-    expected_profit = float(f"{((resistance - cur_price) / cur_price) * 100:,.2f}")
-    profit_loss_ratio = abs(round(expected_profit / expected_loss, 2))
+    expected_loss = float(f"{((support - cur_price) / cur_price) * 100:.2f}")
+    expected_profit = float(f"{((resistance - cur_price) / cur_price) * 100:.2f}")
+    profit_loss_ratio = abs(float(f"{expected_profit / expected_loss:.2f}"))
 
-    # Cache the results for 1 hour (3600 seconds)
-    cache_value = f"{expected_loss},{expected_profit},{profit_loss_ratio}"
-    redis_client.setex(cache_key, 3600, cache_value)
     return expected_loss, expected_profit, profit_loss_ratio
+
+@st.cache_data
+def find_expected_value(symbol: str, selected_period: int):
+    # Initialize Redis connection
+    redis_client = initialize_redis()
+    if not redis_client:
+        return calculate_expected_value(symbol, selected_period)
+    
+    try:
+        symbol = symbol.upper()
+        cache_key = f"expected_value:{symbol}:{selected_period}"  # Changed key format
+        live_cached_key = f"live_trade:{symbol}"
+        
+        # Clear existing keys if they're of wrong type
+        try:
+            redis_client.delete(cache_key)
+            redis_client.delete(live_cached_key)
+        except:
+            pass
+            
+        # Try to get cached results
+        try:
+            cached_live_result = redis_client.get(live_cached_key)
+            if cached_live_result:
+                values = cached_live_result.split(',')
+                if len(values) == 3:
+                    expected_loss, expected_profit, profit_loss_ratio = map(float, values)
+                    return expected_loss, expected_profit, profit_loss_ratio
+        except:
+            pass
+            
+        try:
+            cached_result = redis_client.get(cache_key)
+            if cached_result:
+                values = cached_result.split(',')
+                if len(values) == 3:
+                    expected_loss, expected_profit, profit_loss_ratio = map(float, values)
+                    return expected_loss, expected_profit, profit_loss_ratio
+        except:
+            pass
+
+        # Calculate new values
+        expected_loss, expected_profit, profit_loss_ratio = calculate_expected_value(symbol, selected_period)
+        
+        # Cache the new results as a string
+        try:
+            cache_value = f"{expected_loss},{expected_profit},{profit_loss_ratio}"
+            redis_client.setex(cache_key, 3600, cache_value)  # Cache for 1 hour
+        except:
+            pass
+        
+        return expected_loss, expected_profit, profit_loss_ratio
+        
+    except Exception as e:
+        st.warning(f"Redis error: {e}, calculating without cache")
+        return calculate_expected_value(symbol, selected_period)
 
 @st.cache_data
 def compute_portfolio_metrics(username: str):
