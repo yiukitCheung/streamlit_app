@@ -549,7 +549,7 @@ def find_expected_value(symbol: str, selected_period: int):
         expected_loss, expected_profit, profit_loss_ratio = map(float, cached_live_result.decode().split(','))
         return expected_loss, expected_profit, profit_loss_ratio
         
-    if cached_result:
+    elif cached_result:
         expected_loss, expected_profit, profit_loss_ratio = map(float, cached_result.decode().split(','))
         return expected_loss, expected_profit, profit_loss_ratio
 
