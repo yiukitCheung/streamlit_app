@@ -544,11 +544,10 @@ def find_expected_value(symbol: str, selected_period: int):
         return expected_loss, expected_profit, profit_loss_ratio
 
     # If not in cache, calculate values
-    find_expected_value = ExpectedReturnRiskAnalyzer()
-    expected_support, expected_resistance = find_expected_value.find_sup_res(symbol.upper(), selected_period)
+    exp_return_risk_analyzer = ExpectedReturnRiskAnalyzer()
+    expected_support, expected_resistance = exp_return_risk_analyzer.find_sup_res(symbol.upper(), selected_period)
     if not expected_support or not expected_resistance:
         return 0, 0, 0
-    
     # Find the ema support and resistance
     for entry in expected_support:
         if entry == 'emas' and expected_support[entry] != float('-inf'):
@@ -572,6 +571,7 @@ def find_expected_value(symbol: str, selected_period: int):
             resistance = expected_resistance[entry]
             break
     
+    
     cur_price = fetch_data('equity', 1).loc[fetch_data('equity', 1)['symbol'] == symbol.upper()].iloc[-1]['close']
     
     expected_loss = float(f"{((support - cur_price) / cur_price) * 100:,.2f}")
@@ -581,7 +581,6 @@ def find_expected_value(symbol: str, selected_period: int):
     # Cache the results for 1 hour (3600 seconds)
     cache_value = f"{expected_loss},{expected_profit},{profit_loss_ratio}"
     redis_client.setex(cache_key, 3600, cache_value)
-    
     return expected_loss, expected_profit, profit_loss_ratio
 
 @st.cache_data
@@ -915,7 +914,6 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                         """, unsafe_allow_html=True)
                                         
                                         expected_loss, expected_profit, profit_loss_ratio = find_expected_value(search_stock_symbol, period_value)
-                                        
                                         # Expected Earnings        
                                         expected_earnings = expected_profit / 100 * toggle_slider
 
@@ -956,7 +954,6 @@ def display_user_dashboard_content(cur_alert_dict=None):
                                                 <p style='font-size:20px; font-weight:bold'>{profit_loss_ratio:+,}</p>
                                             </div>
                                         """, unsafe_allow_html=True)
-   
 
                         else:
                             st.error(f"Stock {search_stock_symbol} not found, do you want to contribute this stock to our database?")
