@@ -245,7 +245,7 @@ class ComputeAcceleratingProfits:
         # Load the processed data from the database
         self.df = pd.DataFrame(list(db[self.mongo_config['process_collection_name']].find(
             {'date': {'$gte': pd.to_datetime(self.start_date)},
-             'instrument': 'equity'}
+            'instrument': 'equity'}
         )))
         
         # Load the stock candidates from the database

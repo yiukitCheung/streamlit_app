@@ -531,14 +531,16 @@ def find_expected_value(symbol: str, selected_period: int):
     cache_key = f"expected_value_{symbol}_{selected_period}"
     live_cached_key = f"live_trade:{symbol}"
     
-    # Try to get cached results
-    cached_result = redis_client.get(cache_key)
+    # Try to get cached results, prioritizing live data
     cached_live_result = redis_client.get(live_cached_key)
+    cached_result = redis_client.get(cache_key)
+    
+    if cached_live_result:
+        expected_loss, expected_profit, profit_loss_ratio = map(float, cached_live_result.decode().split(','))
+        return expected_loss, expected_profit, profit_loss_ratio
+        
     if cached_result:
         expected_loss, expected_profit, profit_loss_ratio = map(float, cached_result.decode().split(','))
-        return expected_loss, expected_profit, profit_loss_ratio
-    elif cached_live_result:
-        expected_loss, expected_profit, profit_loss_ratio = map(float, cached_live_result.decode().split(','))
         return expected_loss, expected_profit, profit_loss_ratio
 
     # If not in cache, calculate values
