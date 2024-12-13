@@ -6,7 +6,11 @@ from pymongo import MongoClient
 from twilio.rest import Client
 import yfinance as yf
 from openai import OpenAI
-client = OpenAI(api_key=st.secrets["chatgpt"]["api_key"])
+from polygon import RESTClient
+
+# ChatGPT
+chatgpt_client = OpenAI(api_key=st.secrets["chatgpt"]["api_key"])
+
 # Database connection details
 dbname = st.secrets["postgres"]["db_name_postgres"]
 user = st.secrets["postgres"]["user"]
@@ -14,15 +18,22 @@ host = st.secrets['postgres']['host']
 port = st.secrets['postgres']['port']
 key = st.secrets['postgres']['password']
 
+# Mongo
 mongo_uri = st.secrets['mongo']['host']
 db_name = st.secrets['mongo']['db_name']
 portfolio_collection_name = st.secrets['mongo']['portfolio_collection_name']
 sandbox_collection_name = st.secrets['mongo']['sandbox_collection_name']
 processed_collection_name = st.secrets['mongo']['processed_collection_name']
+
+# Polygon API
+polygon_api_key = st.secrets['polygon']['api_key']
+
+# Twilio
 account_sid = st.secrets['twilio']['ACC_SID']
 auth_token = st.secrets['twilio']['AUTH_TOKEN']
 
 client = Client(account_sid, auth_token)
+polygon_client = RESTClient(api_key=polygon_api_key)
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -340,7 +351,42 @@ def add_stock_to_database(symbol: str, full_name: str):
     except Exception as e:
         st.error(f"Error adding stock {symbol} to database: {e}")
         return False
-    
+
+def add_crypto_to_database(symbol: str, full_name: str):
+    try:
+        symbol = symbol.upper()
+        # Escape single quotes in the full_name by replacing ' with ''
+        full_name = full_name.replace("'", "''")
+        
+        client = psycopg2.connect(
+            host=st.secrets['postgres']['host'],
+            database=st.secrets['postgres']['db_name_postgres'],
+            user=st.secrets['postgres']['user'],
+            password=st.secrets['postgres']['password']
+        )
+        cursor = client.cursor()
+        
+        # Check if the stock already exists in the database
+        cursor.execute("SELECT * FROM stock WHERE symbol = %s", (symbol,))
+        existing_stock = cursor.fetchone()
+        if existing_stock:
+            st.warning(f"Crypto {symbol} already exists in the database")
+            return False
+        
+        # Use parameterized query to safely handle special characters
+        cursor.execute(
+            "INSERT INTO stock (symbol, name, instrument_type) VALUES (%s, %s, %s)",
+            (symbol, full_name, 'crypto')
+        )
+        
+        client.commit()
+        cursor.close()
+        client.close()
+        st.success(f"Crypto {symbol} added to database")
+        return True
+    except Exception as e:
+        return False
+
 def check_symbol_yahoo(symbol):
     try:
         ticker = yf.Ticker(symbol)
@@ -349,3 +395,16 @@ def check_symbol_yahoo(symbol):
         return current_price is not None
     except Exception as e:
         return False
+
+def check_crypto_exists(symbol: str) -> tuple:
+    """Check if a crypto symbol exists and return market type and ticker name."""
+    
+    try:
+        symbol = symbol.upper()
+        cryto_symbol = f"X:{symbol}USD"
+        ticker_info = polygon_client.get_ticker_details(cryto_symbol)
+        return symbol, ticker_info.base_currency_name
+    
+    except Exception as e:
+        # Handle the case when symbol is not found
+        return None, None
