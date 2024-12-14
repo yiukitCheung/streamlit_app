@@ -5,6 +5,8 @@ import plotly.subplots as sp
 import io, redis, time, json, pymongo, yfinance as yf
 from streamlit_autorefresh import st_autorefresh
 from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo
+import gettext
+import os
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 PROCESSED_COLLECTION_NAME = st.secrets['mongo']['processed_collection_name']
@@ -280,34 +282,36 @@ def display_alerts(alert_df):
     def get_alert_color_and_message(alert_type, value):
         alert_mappings = {
             'velocity_alert': {
-                'velocity_maintained': ('green', 'Maintained'),
-                'velocity_weak': ('orange', 'Weakened'), 
-                'velocity_loss': ('red', 'Loss'),
-                'velocity_negotiating': ('orange', 'Negotiating')
+                'velocity_maintained': (_("Maintained"), 'green'),
+                'velocity_weak': (_("Weakened"), 'orange'), 
+                'velocity_loss': (_("Loss"), 'red'),
+                'velocity_negotiating': (_("Negotiating"), 'orange')
             },
             'touch_type': {
-                'support': ('green', 'Support'),
-                'resistance': ('red', 'Resistance'),
+                'support': (_("Support"), 'green'),
+                'resistance': (_("Resistance"), 'red'),
                 
             },
             'momentum_alert': {
-                "accelerated": ('green', 'Accelerating'),
-                'decelerated': ('red', 'Decelerating'),
+                "accelerated": (_("Accelerating"), 'green'),
+                'decelerated': (_("Decelerating"), 'red'),
                 
             }
         }
         
         # Default to grey color if value or alert type is not recognized
-        color, message = alert_mappings.get(alert_type, {}).get(value, ('grey', 'No Alert'))
-        return color, message
+        message, color = alert_mappings.get(alert_type, {}).get(value, (_("No Alert"), 'grey'))
+        return message, color
 
     # Display alerts in columns
     with col1:
-        st.markdown("<h3 style='text-align: center;'>Up Trend Strength</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
+            _("Up Trend Strength")), 
+            unsafe_allow_html=True)
         if 'velocity_alert' in today_alert.columns and not today_alert['velocity_alert'].empty:
             alert_value = today_alert['velocity_alert'].values[0]
             if pd.notna(alert_value):
-                color, message = get_alert_color_and_message('velocity_alert', alert_value)
+                message, color = get_alert_color_and_message('velocity_alert', alert_value)
                 st.markdown(f"""
                     <div style="text-align: center;">
                         <span style="font-size:50px; color:{color}">●</span>
@@ -316,11 +320,13 @@ def display_alerts(alert_df):
                     """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("<h3 style='text-align: center;'>Support/Resistance</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
+            _("Support/Resistance")), 
+            unsafe_allow_html=True)
         if 'touch_type' in today_alert.columns:
             alert_value = today_alert['touch_type'].values[0]
             
-            color, message = get_alert_color_and_message('touch_type', alert_value)
+            message, color = get_alert_color_and_message('touch_type', alert_value)
 
             st.markdown(f"""
                 <div style="text-align: center;">
@@ -330,10 +336,12 @@ def display_alerts(alert_df):
                 """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown("<h3 style='text-align: center;'>Momentum</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
+            _("Momentum")), 
+            unsafe_allow_html=True)
         if 'momentum_alert' in today_alert.columns:
             alert_value = today_alert['momentum_alert'].values[0]
-            color, message = get_alert_color_and_message('momentum_alert', alert_value)
+            message, color = get_alert_color_and_message('momentum_alert', alert_value)
             st.markdown(f"""
                 <div style="text-align: center;">
                     <span style="font-size:50px; color:{color}">●</span>
@@ -351,7 +359,10 @@ def static_analysis_page(processed_col, alert_col, redis_client):
         st.session_state.stock_not_found = False
         
     # Set the page title and layout
-    st.markdown("<h2 style='text-align: center;'>Long Term Alert Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>{}</h2>".format(
+        _("Long Term Alert Dashboard")), 
+        unsafe_allow_html=True)
+    
     chart_config_container = st.container()
     with chart_config_container:
         # Reduce space around selection components
@@ -364,7 +375,8 @@ def static_analysis_page(processed_col, alert_col, redis_client):
         symbol_col, interval_col, show_structure_col = st.columns(3)
         with symbol_col:
             # Create a dropdown to select the stock
-            stock_to_search = st.text_input("Search Stock", value="")
+            stock_to_search = st.text_input("{}".format(
+                _("Search Stock")), value="")
             if stock_to_search:
                 try:
                     stock_selector = search_stock(stock_to_search)[0]
@@ -387,11 +399,11 @@ def static_analysis_page(processed_col, alert_col, redis_client):
         with interval_col:
             # Create a dropdown to select the interval
             interval_mapping = {
-                                1: "Short Term",
-                                3: "Short-Medium Term",
-                                5: "Medium Term",
-                                8: "Medium-Long Term",
-                                13: "Long Term"}
+                                1: _("Short Term"),
+                                3: _("Short-Medium Term"),
+                                5: _("Medium Term"),
+                                8: _("Medium-Long Term"),
+                                13: _("Long Term")}
 
             distinct_intervals = alert_col.distinct("interval")
             interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
@@ -400,21 +412,28 @@ def static_analysis_page(processed_col, alert_col, redis_client):
             # Slidebar for interval selection
             selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider')
             interval_selector = label_to_interval[selected_label]
+            
         with show_structure_col:
-            show_structure = st.multiselect("Key Price Areas", options=['Key Price Points', 'Most Trading Areas'], default=[])
-            if 'Key Price Points' in show_structure:
+            option_mapping = {
+                'Key Price Points': _("Key Price Points"),
+                'Most Trading Areas': _("Most Trading Areas")
+            }
+            selected_options = st.multiselect("{}".format(
+                _("Key Price Areas")), options=option_mapping.values(), default=[])
+            if 'Key Price Points' in selected_options:
                 st.session_state.show_fibonacci = True
                 st.session_state.show_structure = False
-            if 'Most Trading Areas' in show_structure:
+            if 'Most Trading Areas' in selected_options:
                 st.session_state.show_trading_areas = True
                 st.session_state.show_structure = False
-            if 'Key Price Points' not in show_structure and 'Most Trading Areas' not in show_structure:
+            if 'Key Price Points' not in selected_options and 'Most Trading Areas' not in selected_options:
                 st.session_state.show_fibonacci = False
                 st.session_state.show_trading_areas = False
             
     chart_container = st.container()
     with chart_container:
-        with st.spinner("Loading data..."):
+        with st.spinner("{}".format(
+            _("Loading data..."))):
             processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, interval_selector)
             latest_data = fetch_latest_stock_data(redis_client, stock_selector)
         candlesticks_chart = st.container()
@@ -422,7 +441,8 @@ def static_analysis_page(processed_col, alert_col, redis_client):
             # Add auto-refresh functionality
             st_autorefresh(interval=600000, key="chart")
             
-            with st.spinner("Loading data..."):
+            with st.spinner("{}".format(
+                _("Loading data..."))):
                 alert_df = fetch_alert_data(redis_client, alert_col, stock_selector, interval_selector)
             # Create placeholder for the chart
             chart_placeholder = st.empty()
@@ -433,6 +453,20 @@ def static_analysis_page(processed_col, alert_col, redis_client):
     display_alerts(alert_df)
 
 def long_term_dashboard():
+    # Set up the gettext translation
+    locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
+    lang = 'en'  # Default language
+    # Function to initialize and update translations
+    def set_translation(language):
+        global _
+        translation = gettext.translation(
+            'messages',  # Domain
+            localedir=locale_dir,
+            languages=[language],
+            fallback=True
+        )
+        translation.install()
+        _ = translation.gettext
     redis_client = initialize_redis()
     # Connect to MongoDB and fetch the processed collection
     processed_collection = connect_to_mongo()[PROCESSED_COLLECTION_NAME]

@@ -1,15 +1,19 @@
 import streamlit as st
+import json
+import redis
+from openai import OpenAI
 from pymongo import MongoClient
-from dependencies import init_postgres,init_mongodb_portfolio, verify_user, sign_up_process, forgot_password
+from dependencies import (
+    init_postgres, init_mongodb_portfolio, 
+    verify_user, sign_up_process, forgot_password
+)
 from add_portfolio import add_portfolio
 from Dashboard import user_dashboard
 from long_term import long_term_dashboard
 from short_term import short_term_dashboard
 from settings_page import settings_page
-import redis
-import time
-from openai import OpenAI
-import json
+import gettext, os, time
+
 # OpenAI Configuration
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 assistant_id = st.secrets['chatgpt']['assistant_id']
@@ -56,6 +60,8 @@ if "alert_symbols" not in st.session_state:
     st.session_state["alert_symbols"] = []
 if "messages" not in st.session_state:
     st.session_state["messages"] = messages
+if "language" not in st.session_state:
+    st.session_state["language"] = "en"
 
 def logout():
     for key in ['logged_in', 'username', 'role', 'current_page']:
@@ -64,7 +70,39 @@ def logout():
     st.session_state['current_page'] = "Login"
 
 def main():
+    # Set up Page Config only once
     st.set_page_config(layout="wide")
+    
+    # Set up the gettext translation
+    locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
+    lang = 'en'  # Default language
+    # Function to initialize and update translations
+    def set_translation(language):
+        global _
+        translation = gettext.translation(
+            'messages',  # Domain
+            localedir=locale_dir,
+            languages=[language],
+            fallback=True
+        )
+        translation.install()
+        _ = translation.gettext
+
+    # Set the default translation
+    set_translation(lang)
+
+    # Language Selector
+    language = st.sidebar.radio("", ['English', '中文'])
+    if language == '中文':
+        lang = 'zh'
+        st.session_state['language'] = 'zh'
+    else:
+        lang = 'en'
+        st.session_state['language'] = 'en'
+
+    # Update translation dynamically
+    set_translation(lang)
+    
     init_postgres()
     init_mongodb_portfolio()
     sand_box_results = fetch_sandbox_records()
@@ -96,87 +134,17 @@ def main():
             )
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            st.button("🚪 Log Out", on_click=logout)
-            st.button("⚙️ Settings", on_click=lambda: st.session_state.update(current_page="Settings"))
-            st.button("📊 Edit Portfolio", on_click=lambda: st.session_state.update(current_page="Portfolio"))
+            st.button(_("🚪 Log Out"), on_click=logout)
+            st.button(_("⚙️ Settings"), on_click=lambda: st.session_state.update(current_page="Settings"))
+            st.button(_("📊 Edit Portfolio"), on_click=lambda: st.session_state.update(current_page="Portfolio"))
         with col2:
-            st.button("🏠 User Dashboard", on_click=lambda: st.session_state.update(current_page="Main Page"))
-            st.button("📈 Stock InDepth", on_click=lambda: st.session_state.update(current_page="Long Term"))
-            st.button("⚡ Fast Money", on_click=lambda: st.session_state.update(current_page="Short Term"))
-        
-        chat_placeholder = st.sidebar.empty()
-        with chat_placeholder:
-            # Display chat header in the sidebar
-            st.sidebar.markdown("""
-                <div class="chat-header" style="
-                    text-align: center;
-                    padding: 15px;
-                    background-color: #f0f8ff;
-                    border-radius: 10px;
-                    margin: 10px 0;
-                    font-size: 18px;
-                    font-weight: bold;
-                    color: #2c3e50;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                ">
-                    Condvest Advisor Chat
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Create a placeholder for the chat container in the sidebar
-            chat_placeholder = st.sidebar.empty()
-
-            with chat_placeholder.container():
-                st.sidebar.markdown("""
-                    <div class="chat-container">
-                        <div class="chat-messages">
-                """, unsafe_allow_html=True)
-                            
-            # Accept user input outside the chat_placeholder
-            if prompt := st.sidebar.text_input("", 
-                                                placeholder="Ask me what is this about and how does it work?", 
-                                                help="Type your question here and press Enter", 
-                                                label_visibility="collapsed"):
-                
-                # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                # Create a new container for chat messages
-                chat_messages = chat_placeholder.container()
-                
-                # Display user message in chat message container
-                with chat_messages.chat_message("user"):
-                    st.markdown(f"""
-                        <div style="width: 100%; word-wrap: break-word;">
-                            {prompt}
-                        </div>
-                    """, unsafe_allow_html=True)
-
-                # Simulate assistant response (replace with actual API call logic)
-                with chat_messages.chat_message("assistant"):
-                    condvest_advisor = client.chat.completions.create(
-                                        model="gpt-4o-mini",
-                                        messages=st.session_state.messages,
-                                        response_format={
-                                            "type": "text"
-                                        },
-                                        temperature=0.5,
-                                        max_tokens=2048,
-                                        top_p=1,
-                                        frequency_penalty=0,
-                                        presence_penalty=0)
-                    condvest_advisor_response = condvest_advisor.choices[0].message.content
-                    # Display assistant's response in chat message container
-                    st.markdown(f"""
-                        <div style="width: 100%; word-wrap: break-word;">
-                            {condvest_advisor_response}
-                        </div>
-                    """, unsafe_allow_html=True)
-                
+            st.button(_("🏠 User Dashboard"), on_click=lambda: st.session_state.update(current_page="Main Page"))
+            st.button(_("📈 Stock InDepth"), on_click=lambda: st.session_state.update(current_page="Long Term"))
+            st.button(_("⚡ Fast Money"), on_click=lambda: st.session_state.update(current_page="Short Term"))          
     elif st.session_state['current_page'] == "Sign Up":
-        st.sidebar.button("Log in", on_click=lambda: st.session_state.update(current_page="Login"))
+        st.sidebar.button(_("Log in"), on_click=lambda: st.session_state.update(current_page="Login"))
     elif st.session_state['current_page'] == "Forgot Password":
-        st.sidebar.button("Back to Login", on_click=lambda: st.session_state.update(current_page="Login"))
+        st.sidebar.button(_("Back to Login"), on_click=lambda: st.session_state.update(current_page="Login"))
     # Display page content based on the current page
     placeholder = st.empty()
     with placeholder.container():
@@ -202,7 +170,7 @@ def main():
                     padding-left: 100%; /* Start outside view */
                     font-size: 18px;
                     font-weight: bold;
-                    animation: scroll 480s linear infinite; 
+                    animation: scroll 60s linear infinite; 
                 }
 
                 /* Define the scrolling animation */
@@ -212,21 +180,20 @@ def main():
                 }
                 </style>
             """, unsafe_allow_html=True)
-
             # Create scrolling text with conditional colors for profit/loss
             scrolling_text = " | ".join(
-                f"<span style='color: {'#4CAF50' if item['final_profit_loss_pct'] > 0 else '#FF5733'}'>"
-                f"🚀 {item['symbol']}: Entry {item['entry_date'].strftime('%Y-%m-%d')} | Exit {item['exit_date'].strftime('%Y-%m-%d')} | "
-                f"Profit/Loss: {item['final_profit_loss_pct'] * 100:.2f}%"
+                f"<span style='color: {'#4CAF50' if float(item['profit/loss'].split('%')[0]) > 0 else '#FF5733'}'>"
+                f"🚀 {item['symbol']}: Entry {item['Entry_date'].strftime('%Y-%m-%d')} | Exit {item['Exit_date'].strftime('%Y-%m-%d')} | "
+                f"Profit/Loss: {float(item['profit/loss'].split('%')[0]):.2f}%"
                 f"</span>"
-                for item in sand_box_results if ('entry_date' in item) and ('exit_date' in item) and (item['final_profit_loss_pct'] > 0)
+                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss'].split('%')[0]) > 0)
             )
             # Display scrolling marquee in Streamlit
             st.markdown(
                 f"""
                 <div class="marquee-container">
                     <span class="marquee">
-                        CondVest Backtest Results from 2021: {scrolling_text}
+                        {_("CondVest Backtest Results from 2024:")} {scrolling_text}
                     </span>
                 </div>
                 """,
@@ -269,16 +236,18 @@ def main():
                 """, unsafe_allow_html=True)
 
                 # Login section with styled header
-                st.markdown("<h2 style='text-align: center; color: #2c3e50;'>Member Login</h2>", unsafe_allow_html=True)
-                
+                st.markdown(
+                    f"<h2 style='text-align: center; color: #2c3e50;'>{_('Member Login')}</h2>",
+                    unsafe_allow_html=True
+                )                   
                 # Input fields with consistent styling
-                username = st.text_input("Username ", key="username_input", placeholder="admin") # Added space after Username to align with Password
-                password = st.text_input("Password ", type="password", key="password_input", placeholder="1234") # Added space after Password
+                username = st.text_input(_("Username "), key="username_input", placeholder="admin") # Added space after Username to align with Password
+                password = st.text_input(_("Password "), type="password", key="password_input", placeholder="1234") # Added space after Password
 
                 # Login button with validation
-                if st.button("Login", key="login"):
+                if st.button(_("Login"), key="login"):
                     if not username or not password:
-                        st.error("Please enter both username and password.")
+                        st.error(_("Please enter both username and password."))
                     else:
                         is_valid, role = verify_user(username, password)
                         if is_valid:
@@ -286,44 +255,60 @@ def main():
                             st.session_state['username'] = username
                             st.session_state['role'] = role
                             st.session_state['current_page'] = "Main Page"
-                            st.success(f"Welcome {username}!")
+                            st.success(_(f"Welcome {username}!"))
                             st.rerun()
                         else:
-                            st.error("Invalid username or password")
-
+                            st.error(_("Invalid username or password"))
                 # Additional buttons with consistent styling
-                st.button("Sign Up", on_click=lambda: st.session_state.update(current_page="Sign Up"))
-                st.button("Forgot Password?", on_click=lambda: st.session_state.update(current_page="Forgot Password"))
-            
+                st.button(_("Sign Up"), on_click=lambda: st.session_state.update(current_page="Sign Up"))
+                st.button(_("Forgot Password?"), on_click=lambda: st.session_state.update(current_page="Forgot Password"))
+                if st.button(_("Please Check Us Out")):
+                    st.session_state.update(current_page="Main Page")
+                    st.session_state['logged_in'] = True
+                    st.session_state['username'] = "guest"
+                    st.session_state['role'] = "guest"
+                    st.rerun()
             with col2:
-                st.markdown("""
+                st.markdown(_("""
                 <div stype="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #2E8B57;">About Us</h2>
+                    <h2 style="color: #2E8B57;">{}</h2>
                 <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #2E8B57;">CondVest</h2>
+                    <h2 style="color: #2E8B57;">{}</h2>
                     <p style="font-size: 16px; line-height: 1.6;">
-                        At CondVest, our mission is to simplify the complexities of the equity market for individual investors. 
-                        We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. 
-                        By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter.
+                        {}
                     </p>
                     <p style="font-size: 16px; line-height: 1.6;">
-                        Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, 
-                        highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, 
-                        helping investors make informed decisions without the time-consuming process of sorting through overwhelming data.
+                        {}
                     </p>
-                    <h3 style="color: #2E8B57;">Our Principles</h3>
+                    <h3 style="color: #2E8B57;">{}</h3>
                     <ul style="font-size: 16px; line-height: 1.6;">
-                        <li><b>Clarity Over Complexity:</b> We turn intricate market data into clear, valuable insights, empowering investors to act with confidence.</li>
-                        <li><b>Responsible Investing:</b> At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits.</li>
-                        <li><b>Investor-Centric Approach:</b> Unlike other platforms, our goal is to support your success. We’re here to help you make profits, not just presenting information.</li>
+                        <li><b>{}:</b> {}</li>
+                        <li><b>{}:</b> {}</li>
+                        <li><b>{}:</b> {}</li>
                     </ul>
-                    <h3 style="color: #2E8B57;">Our Vision</h3>
+                    <h3 style="color: #2E8B57;">{}</h3>
                     <p style="font-size: 16px; line-height: 1.6;">
-                        We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably. 
-                        By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society.
+                        {} 
+                        {}
                     </p>
                 </div>
-                """, unsafe_allow_html=True)
+                """).format(_("About Us"),
+                            _("CondVest"),
+                            _("At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
+                            _("Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data."),
+                            _("Our Mission"),
+                            _("Clarity Over Complexity"),
+                            _("We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."),
+                            _("Responsible Investing"),
+                            _("At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."),
+                            _("Investor-Centric Approach"),
+                            _("Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information."),
+                            _("Our Principles"),
+                            _("We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."),
+                            _("By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
+                            _("Our Vision")),
+                unsafe_allow_html=True)
+                
         elif st.session_state['current_page'] == "Forgot Password":
             forgot_password()
         elif st.session_state['current_page'] == "Sign Up":

@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+
+msgid "languages"
+msgstr "Languages"
+
+msgid "🚪 Log Out"
+msgstr "🚪 Log Out"
+
+msgid "⚙️ Settings"
+msgstr "⚙️ Settings"
+
+msgid "📊 Edit Portfolio"
+msgstr "📊 Edit Portfolio"
+
+msgid "🏠 User Dashboard"
+msgstr "🏠 User Dashboard"
+
+msgid "📈 Stock InDepth"
+msgstr "📈 Stock InDepth"
+
+msgid "⚡ Fast Money"
+msgstr "⚡ Fast Money"
+
+msgid "Back to Login"
+msgstr "Back to Login"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "CondVest Backtest Results from 2021:"
+msgstr "CondVest Backtest Results from 2021:"
+
+msgid "CondVest Backtest Results from 2024:"
+msgstr "CondVest Backtest Results from 2024:"
+
+msgid "Invalid username or password"
+msgstr "Invalid username or password"
+
+msgid "Please enter both username and password."
+msgstr "Please enter both username and password."
+
+msgid "At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+msgstr "At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+
+msgid "Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data."
+msgstr "Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data."
+
+msgid "Clarity Over Complexity"
+msgstr "Clarity Over Complexity"
+
+msgid "We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."
+msgstr "We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."
+
+msgid "Responsible Investing"
+msgstr "Responsible Investing"
+
+msgid "At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."
+msgstr "At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."
+
+msgid "Investor-Centric Approach"
+msgstr "Investor-Centric Approach"
+
+msgid "Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information."
+msgstr "Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information."
+
+msgid "We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."
+msgstr "We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."
+
+msgid "By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+msgstr "By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+
+msgid "About Us"
+msgstr "About Us"
+
+msgid "CondVest"
+msgstr "CondVest"
+
+msgid "Our Principles"
+msgstr "Our Principles"
+
+msgid "Our Vision"
+msgstr "Our Vision"
+
+msgid "Our Mission"
+msgstr "Our Mission"
+
+msgid "Forgot Password?"
+msgstr "Forgot Password?"
+
+msgid "Sign Up"
+msgstr "Sign Up"
+
+msgid "Log in"
+msgstr "Log in"
+
+msgid "Choose Language"
+msgstr "Choose Language"
+
+msgid "Average Profit"
+msgstr "Average Profit"
+
+msgid "Average Loss"
+msgstr "Average Loss"
+
+msgid "Best Trade"
+msgstr "Best Trade"
+
+msgid "Worst Trade"
+msgstr "Worst Trade"
+
+msgid "CondVest Alerts Performance"
+msgstr "CondVest Alerts Performance"
+
+msgid "Please Check Us Out"
+msgstr "Please Check Us Out"
+
+msgid "Market Health Overview"
+msgstr "Market Health Overview"
+
+msgid "Select Instrument"
+msgstr "Select Instrument"
+
+msgid "Index"
+msgstr "Index"
+
+msgid "Commodity"
+msgstr "Commodity"
+
+msgid "Sector"
+msgstr "Sector"
+
+msgid "Bond"
+msgstr "Bond"
+
+msgid "30-Year Treasury Yield"
+msgstr "30-Year Treasury Yield"
+
+msgid "5-Year Treasury Yield"
+msgstr "5-Year Treasury Yield"
+
+msgid "iShares Semiconductor ETF"
+msgstr "iShares Semiconductor ETF"
+
+msgid "Technology Select Sector SPDR"
+msgstr "Technology Select Sector SPDR"
+
+msgid "Health Care Select Sector SPDR"
+msgstr "Health Care Select Sector SPDR"
+
+msgid "Financial Select Sector SPDR"
+msgstr "Financial Select Sector SPDR"
+
+msgid "Consumer Staples Select Sector SPDR"
+msgstr "Consumer Staples Select Sector SPDR"
+
+msgid "Consumer Discretionary Select Sector SPDR"
+msgstr "Consumer Discretionary Select Sector SPDR"
+
+msgid "Energy Select Sector SPDR"
+msgstr "Energy Select Sector SPDR"
+
+msgid "Real Estate Select Sector SPDR"
+msgstr "Real Estate Select Sector SPDR"
+
+msgid "Utilities Select Sector SPDR"
+msgstr "Utilities Select Sector SPDR"
+
+msgid "Crude Oil Futures"
+msgstr "Crude Oil Futures"
+
+msgid "Silver Futures"
+msgstr "Silver Futures"
+
+msgid "Natural Gas Futures"
+msgstr "Natural Gas Futures"
+
+msgid "Gold Futures"
+msgstr "Gold Futures"
+
+msgid "Nasdaq Composite Index"
+msgstr "Nasdaq Composite Index"
+
+msgid "Dow Jones Industrial Average"
+msgstr "Dow Jones Industrial Average"
+
+msgid "Russell 2000 Index"
+msgstr "Russell 2000 Index"
+
+msgid "S&P 500 Index"
+msgstr "S&P 500 Index"
+
+msgid "Select Symbol"
+msgstr "Select Symbol"
+
+msgid "Chart Type"
+msgstr "Chart Type"
+
+msgid "Short Term"
+msgstr "Short Term"
+
+msgid "Short-Medium Term"
+msgstr "Short-Medium Term"
+
+msgid "Medium Term"
+msgstr "Medium Term"
+
+msgid "Medium-Long Term"
+msgstr "Medium-Long Term"
+
+msgid "Long Term"
+msgstr "Long Term"
+
+msgid "No data found for this instrument, please select another one."
+msgstr "No data found for this instrument, please select another one."
+
+msgid "No symbols found for this instrument, please select another one."
+msgstr "No symbols found for this instrument, please select another one."
+
+msgid "Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."
+msgstr "Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."
+
+msgid "Market is maintaining its upward momentum"
+msgstr "Market is maintaining its upward momentum"
+
+msgid "Market is slowing down"
+msgstr "Market is slowing down"
+
+msgid "Market is losing its upward momentum"
+msgstr "Market is losing its upward momentum"
+
+msgid "Market is consolidating"
+msgstr "Market is consolidating"    
+
+msgid "Optimistic"
+msgstr "Optimistic"
+
+msgid "Neutral"
+msgstr "Neutral"
+
+msgid "Pessimistic"
+msgstr "Pessimistic"
+
+msgid "Consolidating"
+msgstr "Consolidating"
+
+msgid "Line Chart"
+msgstr "Line Chart"
+
+msgid "Cumulative Return"
+msgstr "Cumulative Return"
+
+msgid "Candlesticks"
+msgstr "Candlesticks"
+
+msgid "System Error, please try again later."
+msgstr "System Error, please try again later."
+
+msgid "Condvest AI Advisor Chat"
+msgstr "Condvest AI Advisor Chat"
+
+msgid "Ask me what is this about and how does it work?"
+msgstr "Ask me what is this about and how does it work?"
+
+msgid "Type your question here and press Enter"
+msgstr "Type your question here and press Enter"
+
+msgid "CondVest Pick 💰"
+msgstr "CondVest Pick 💰"
+
+msgid "Select Trading Term"
+msgstr "Select Trading Term"
+
+msgid "Worth a Try 💰"
+msgstr "Worth a Try 💰"
+
+msgid "Could be a bounce this week 💰"
+msgstr "Could be a bounce this week 💰"
+
+msgid "No Opportunity found today, bored... 😴"
+msgstr "No Opportunity found today, bored... 😴"
+
+msgid "💰 Buy!"
+msgstr "💰 Buy!"
+
+msgid "💰 Possible Bounce!"
+msgstr "💰 Possible Bounce!"
+
+msgid "Check How Much You Can Earn in a Week 🔍"
+msgstr "Check How Much You Can Earn in a Week 🔍"
+
+msgid "Stock not found, do you want to contribute this stock to our database?"
+msgstr "Stock not found, do you want to contribute this stock to our database?"
+
+msgid "Crypto not found, do you want to contribute this crypto to our database?"
+msgstr "Crypto not found, do you want to contribute this crypto to our database?"
+
+msgid "Expected Earnings"
+msgstr "Expected Earnings"
+
+msgid "Expected Loss"
+msgstr "Expected Loss"
+
+msgid "Mid Term"
+msgstr "Mid Term"
+
+msgid "BUY"
+msgstr "BUY"
+
+msgid "SELL"
+msgstr "SELL"
+
+msgid "Sorry, this stock is not available on Market, is it a typo?"
+msgstr "Sorry, this stock is not available on Market, is it a typo?"
+
+msgid "Sorry, this crypto is not available on Market, is it a typo?"
+msgstr "Sorry, this crypto is not available on Market, is it a typo?"
+
+msgid "Portfolio Analytics Report"
+msgstr "Portfolio Analytics Report"
+
+msgid "Dear user, you don't have any portfolio yet, you can add one by navigating to EDIT PORTFOLIO in the sidebar."
+msgstr "Dear user, you don't have any portfolio yet, you can add one by navigating to EDIT PORTFOLIO in the sidebar."
+
+msgid "We will leverage data-driven approach and AI to monitor and analyze your portfolio in Real-Time!!"
+msgstr "We will leverage data-driven approach and AI to monitor and analyze your portfolio in Real-Time!!"
+
+msgid "Long Term Alert Dashboard"
+msgstr "Long Term Alert Dashboard"
+
+msgid "Search Stock"
+msgstr "Search Stock"
+
+msgid "Loading data..."
+msgstr "Loading data..."
+
+msgid "Key Price Areas"
+msgstr "Key Price Areas"
+
+msgid "Key Price Points"
+msgstr "Key Price Points"
+
+msgid "Most Trading Areas"
+msgstr "Most Trading Areas"
+
+msgid "Momentum"
+msgstr "Momentum"
+
+msgid "Support/Resistance"
+msgstr "Support/Resistance"
+
+msgid "Up Trend Strength"
+msgstr "Up Trend Strength"
+
+msgid "No Alert"
+msgstr "No Alert"
+
+msgid "Accelerating"
+msgstr "Accelerating"
+
+msgid "Decelerating"
+msgstr "Decelerating"
+
+msgid "Support"
+msgstr "Support"
+
+msgid "Resistance"
+msgstr "Resistance"
+
+msgid "Loss"
+msgstr "Loss"
+
+msgid "Negotiating"
+msgstr "Negotiating"
+
+msgid "Weakened"
+msgstr "Weakened"
+
+msgid "Maintained"
+msgstr "Maintained"
+
+msgid "Add Stock to Portfolio"
+msgstr "Add Stock to Portfolio"
+
+msgid "Delete Stock from Portfolio"
+msgstr "Delete Stock from Portfolio"
+
+msgid "➕ Add to Portfolio"
+msgstr "➕ Add to Portfolio"
+
+msgid "🗑️ Delete from Portfolio"
+msgstr "🗑️ Delete from Portfolio"
+
+msgid "Enter the stock to delete from portfolio:"
+msgstr "Enter the stock to delete from portfolio:"
+
+msgid "Short Term Alerts Dashboard"
+msgstr "Short Term Alerts Dashboard"
+
+msgid "💰 Enter Average Price:"
+msgstr "💰 Enter Average Price:"
+
+msgid "📈 Enter Number of Shares:"
+msgstr "📈 Enter Number of Shares:"
+
+msgid "🔍 Search Stock:"
+msgstr "🔍 Search Stock:"
+
+msgid "Enter stock symbol..."
+msgstr "Enter stock symbol..."  
+
+msgid "🎉 Thanks for your contribution! Your stock will be added to the database tomorrow."
+msgstr "🎉 Thanks for your contribution! Your stock will be added to the database tomorrow."
+
+msgid "😔 Sorry, Stock not found in database"
+msgstr "😔 Sorry, Stock not found in database"
+
+msgid "🤔 Would you like to contribute this stock to our database?"
+msgstr "🤔 Would you like to contribute this stock to our database?"
+
+msgid "e.g. 150.50"
+msgstr "e.g. 150.50"
+
+msgid "e.g. 100"
+msgstr "e.g. 100"   
+
+msgid "Portfolio is Empty"
+msgstr "Portfolio is Empty"
+
+msgid "No Alert Time Available"
+msgstr "No Alert Time Available"
+
+msgid "No Alert Yet"
+msgstr "No Alert Yet"

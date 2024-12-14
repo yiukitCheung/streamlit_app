@@ -1,0 +1,469 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh\n"
+
+msgid "languages"
+msgstr "语言"
+
+msgid "Username "
+msgstr "用户名 "
+
+msgid "Password "
+msgstr "密码 "
+
+msgid "🚪 Log Out"
+msgstr "🚪 登出"
+
+msgid "⚙️ Settings"
+msgstr "⚙️ 设置"
+
+msgid "📊 Edit Portfolio"
+msgstr "📊 编辑投资组合"
+
+msgid "🏠 User Dashboard"
+msgstr "🏠 用户仪表板"
+
+msgid "📈 Stock InDepth"
+msgstr "📈 股票深入分析"
+
+msgid "⚡ Fast Money"
+msgstr "⚡ 快速赚钱"
+
+msgid "Back to Login"
+msgstr "返回登录"
+
+msgid "Login"
+msgstr "登录"
+
+msgid "Forgot Password?"
+msgstr "忘记密码？"
+
+msgid "Sign Up"
+msgstr "注册"
+
+msgid "Log in"
+msgstr "登录"
+
+msgid "CondVest Backtest Results from 2021:"
+msgstr "CondVest 2021年回测结果："
+
+msgid "Choose Language"
+msgstr "选择语言"
+
+msgid "CondVest Backtest Results from 2024:"
+msgstr "CondVest 2024年回测结果："
+
+msgid "Invalid username or password"
+msgstr "用户名或密码错误"
+
+msgid "Please enter both username and password."
+msgstr "请输入用户名和密码。"
+
+msgid "At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+msgstr "在CondVest，我们的使命是简化股票市场的复杂性，为个人投资者提供清晰、可操作的见解。我们相信每个人都应该获得清晰、可操作的见解，而无需被市场数据中的噪音所困扰。通过整合、分析和提炼大量财务信息，我们为投资者提供简洁、易于理解的投资警报和见解，这些见解真正重要。通过引导投资者做出更明智、更明智的决定，CondVest旨在为更金融化的社会做出贡献。"
+
+msgid "Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data."
+msgstr "我们的自动警报系统由先进的技术分析驱动，旨在突出潜在机会，强调风险，并跟踪市场资本流动。我们减少了大量尽职调查的需求，帮助投资者在没有耗时过程的情况下做出明智的决定。"
+
+msgid "Clarity Over Complexity"
+msgstr "化繁为简"
+
+msgid "We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."
+msgstr "我们将复杂的市场数据转化为清晰、有价值的见解，使投资者能够自信地行动。"
+
+msgid "Responsible Investing"
+msgstr "禅"
+
+msgid "At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."
+msgstr "在CondVest，我们优先帮助投资者建立结构化、低风险的交易实践，培养纪律性投资习惯。"
+
+msgid "Investor-Centric Approach"
+msgstr "以投资人为中心"
+
+msgid "Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information."
+msgstr "与其他平台不同，我们的目标是支持您的成功。我们在这里帮助您管理您的投资组合，而不仅仅是提供信息。"
+
+msgid "We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."
+msgstr "我们设想一个世界，在这个世界里，个人投资者拥有他们需要的工具，以负责任和盈利的方式导航金融市场。"
+
+msgid "By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."
+msgstr "通过引导投资者做出更明智、更明智的决定，CondVest旨在为更金融化的社会做出贡献。"
+
+msgid "About Us"
+msgstr "关于我们"
+
+msgid "CondVest"
+msgstr "CondVest"
+
+msgid "Our Mission"
+msgstr "我们的使命"
+
+msgid "Our Principles"
+msgstr "我们的原则"
+
+msgid "Our Vision"
+msgstr "我们的愿景"
+
+msgid "Average Profit"
+msgstr "平均利润"
+
+msgid "Average Loss"
+msgstr "平均损失"
+
+msgid "Best Trade"
+msgstr "最佳交易"
+
+msgid "Worst Trade"
+msgstr "最差交易"
+
+msgid "CondVest Alerts Performance"
+msgstr "CondVest 挚选股表现"
+
+msgid "Please Check Us Out"
+msgstr "请进"
+
+msgid "Market Health Overview"
+msgstr "市场概览"
+
+msgid "Select Instrument"
+msgstr "选择衍生品"
+
+msgid "Index"
+msgstr "指数"
+
+msgid "Commodity"
+msgstr "大宗商品"
+
+msgid "Sector"
+msgstr "板块"
+
+msgid "Bond"
+msgstr "债券"
+
+msgid "Nasdaq Composite Index"
+msgstr "纳斯达克综合指数"
+
+msgid "Dow Jones Industrial Average"
+msgstr "道琼斯工业平均指数"
+
+msgid "Russell 2000 Index"
+msgstr "罗素2000指数"
+
+msgid "S&P 500 Index"
+msgstr "标普500指数"
+
+msgid "Gold Futures"
+msgstr "黄金期货"
+
+msgid "Natural Gas Futures"
+msgstr "天然气期货"
+
+msgid "Crude Oil Futures"
+msgstr "原油期货"
+
+msgid "Silver Futures"
+msgstr "白银期货"
+
+msgid "10-Year Treasury Yield"
+msgstr "10年期国债收益率"
+
+msgid "30-Year Treasury Yield"
+msgstr "30年期国债收益率"
+
+msgid "5-Year Treasury Yield"
+msgstr "5年期国债收益率"
+
+msgid "iShares Semiconductor ETF"
+msgstr "iShares半导体ETF"
+
+msgid "Technology Select Sector SPDR"
+msgstr "科技选择板块SPDR"
+
+msgid "Health Care Select Sector SPDR"
+msgstr "医疗保健选择板块SPDR"
+
+msgid "Financial Select Sector SPDR"
+msgstr "金融选择板块SPDR"
+
+msgid "Energy Select Sector SPDR"
+msgstr "能源选择板块SPDR"
+
+msgid "Real Estate Select Sector SPDR"
+msgstr "房地产选择板块SPDR"
+
+msgid "Utilities Select Sector SPDR"
+msgstr "公用事业选择板块SPDR"
+
+msgid "Consumer Discretionary Select Sector SPDR"
+msgstr "消费者非必需品选择板块SPDR"
+
+msgid "Consumer Staples Select Sector SPDR"
+msgstr "消费者必需品选择板块SPDR"
+
+msgid "Select Symbol"
+msgstr "选择标的"
+
+msgid "Chart Type"
+msgstr "图表类型"
+
+msgid "Short Term"
+msgstr "短期"
+
+msgid "Mid Term"
+msgstr "中期"
+
+msgid "Short-Medium Term"
+msgstr "短期-中期"
+
+msgid "Medium Term"
+msgstr "中期"
+
+msgid "Medium-Long Term"
+msgstr "中期-长期"
+
+msgid "Long Term"
+msgstr "长期"
+
+msgid "No data found for this instrument, please select another one."
+msgstr "没有找到该衍生品的数据，请选择另一个。"
+
+msgid "No symbols found for this instrument, please select another one."
+msgstr "没有找到该标的的数据，请选择另一个。"
+
+msgid "Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."
+msgstr "请记住，时间越长，信号越强。只关注短期可能会有些风险 🤫。"
+
+msgid "Market is maintaining its upward momentum"
+msgstr "市场正在保持其上升势头"
+
+msgid "Market is slowing down"
+msgstr "市场正在放缓"
+
+msgid "Market is losing its upward momentum"
+msgstr "市场正在失去其上升势头"
+
+msgid "Market is consolidating"
+msgstr "市场正在犹豫不决"
+
+msgid "Optimistic"
+msgstr "乐观"
+
+msgid "Neutral"
+msgstr "中性"
+
+msgid "Pessimistic"
+msgstr "悲观"
+
+msgid "Consolidating"
+msgstr "犹豫不决"
+
+msgid "Line Chart"
+msgstr "线图"
+
+msgid "Cumulative Return"
+msgstr "累计回报"
+
+msgid "Candlesticks"
+msgstr "蜡烛图"
+
+msgid "System Error, please try again later."
+msgstr "系统错误，请稍后再试。"
+
+msgid "Condvest AI Advisor Chat"
+msgstr "Condvest AI 投资顾问"
+
+msgid "Ask me what is this about and how does it work?"
+msgstr "问我这是什么，以及它是如何工作的？"
+
+msgid "Type your question here and press Enter"
+msgstr "在这里输入你的问题并按回车"
+
+msgid "CondVest Pick 💰"
+msgstr "Condvest 挚选股 💰"
+
+msgid "Select Trading Term"
+msgstr "选择交易期限"
+
+msgid "Worth a Try 💰"
+msgstr "值得尝试 💰"
+
+msgid "Could be a bounce this week 💰"
+msgstr "可能本周反弹 💰"
+
+msgid "No Opportunity found today, bored... 😴"
+msgstr "今天没有机会，无聊... 😴"
+
+msgid "💰 Buy!"
+msgstr "💰 买入！"
+
+msgid "💰 Possible Bounce!"
+msgstr "💰 可能反弹！"
+
+msgid "Check How Much You Can Earn in a Week 🔍"
+msgstr "看看周内能赚多少钱 🔍"
+
+msgid "Stock"
+msgstr "股票"
+
+msgid "Crypto"
+msgstr "游戏币"
+
+msgid "Contribute New Stock"
+msgstr "贡献新股票"
+
+msgid "Contribute New Crypto"
+msgstr "贡献新游戏币"
+
+msgid "💰 Investment Amount ($)"
+msgstr "💰 投资金额 ($)"
+
+msgid "Search Crypto"
+msgstr "搜索游戏币"
+
+msgid "A decent stock should have Profit/Loss ratio of 1 or more"
+msgstr "一个不错的股票应该有1或更多的利润/损失比率"
+
+msgid "A decent crypto should have Profit/Loss ratio of 1 or more"
+msgstr "一个不错的游戏币应该有1或更多的利润/损失比率"
+
+msgid "Stock not found, do you want to contribute this stock to our database?"
+msgstr "股票未找到，你想贡献这个股票到我们的数据库吗？"
+
+msgid "Crypto not found, do you want to contribute this crypto to our database?"
+msgstr "游戏币未找到，你想贡献这个游戏币到我们的数据库吗？"
+
+msgid "Sorry, this stock is not available on Market, is it a typo?"
+msgstr "对不起，这个股票在市场上不可用，是拼写错误吗？"
+
+msgid "Sorry, this crypto is not available on Market, is it a typo?"
+msgstr "对不起，这个游戏币在市场上不可用，是拼写错误吗？"
+
+msgid "Expected Earnings"
+msgstr "预期收益"
+
+msgid "Expected Loss"
+msgstr "预期损失"
+
+msgid "BUY"
+msgstr "买入"
+
+msgid "SELL"
+msgstr "卖出"
+
+msgid "Portfolio Analytics Report"
+msgstr "投资组合分析报告"
+
+msgid "Dear user, you don't have any portfolio yet, you can add one by navigating to EDIT PORTFOLIO in the sidebar."
+msgstr "亲爱的用户，您还没有任何投资组合，您可以通过在侧边栏中导航到EDIT PORTFOLIO来添加一个。"
+
+msgid "We will leverage data-driven approach and AI to monitor and analyze your portfolio in Real-Time!!"
+msgstr "我们将利用数据驱动的方法和AI来监控和分析您的投资组合，实时进行！！"
+
+msgid "Long Term Alert Dashboard"
+msgstr "标的长期警报仪表板"
+
+msgid "Search Stock"
+msgstr "搜索股票"
+
+msgid "Loading data..."
+msgstr "加载数据..."
+
+msgid "Key Price Areas"
+msgstr "关键价格区域"
+
+msgid "Key Price Points"
+msgstr "关键价格点"
+
+msgid "Most Trading Areas"
+msgstr "主要交易区域"
+
+msgid "Momentum"
+msgstr "动量"
+
+msgid "Support/Resistance"
+msgstr "支撑/阻力"
+
+msgid "Up Trend Strength"
+msgstr "上升趋势强度"
+
+msgid "No Alert"
+msgstr "无警报"
+
+msgid "Accelerating"
+msgstr "加速上涨"
+
+msgid "Decelerating"
+msgstr "减速上涨"
+
+msgid "Support"
+msgstr "到达支撑"
+
+msgid "Resistance"
+msgstr "到达阻力"
+
+msgid "Loss"
+msgstr "下跌趋势"
+
+msgid "Negotiating"
+msgstr "震荡趋势"
+
+msgid "Weakened"
+msgstr "上升动力减弱"
+
+msgid "Maintained"
+msgstr "上升动力维持"
+
+msgid "Short Term Alerts Dashboard"
+msgstr "短期警报仪表板"
+
+msgid "Add Stock to Portfolio"
+msgstr "添加股票到投资组合"
+
+msgid "Delete Stock from Portfolio"
+msgstr "删除股票从投资组合"
+
+msgid "➕ Add to Portfolio"
+msgstr "➕ 添加到投资组合"
+
+msgid "🗑️ Delete from Portfolio"
+msgstr "🗑️ 删除从投资组合"
+
+msgid "Enter the stock to delete from portfolio:"
+msgstr "输入要删除的股票："
+
+msgid "💰 Enter Average Price:"
+msgstr "💰 输入平均价格："
+
+msgid "📈 Enter Number of Shares:"
+msgstr "📈 输入股票数量："
+
+msgid "🔍 Search Stock:"
+msgstr "🔍 搜索股票："
+
+msgid "Enter stock symbol..."
+msgstr "输入股票符号..."
+
+msgid "🎉 Thanks for your contribution! Your stock will be added to the database tomorrow."
+msgstr "🎉 感谢您的贡献！您的股票将在明天添加到数据库中。"
+
+msgid "😔 Sorry, Stock not found in database"
+msgstr "😔 对不起，股票未找到数据库"
+
+msgid "🤔 Would you like to contribute this stock to our database?"
+msgstr "🤔 您想贡献这个股票到我们的数据库吗？"
+
+msgid "e.g. 150.50"
+msgstr "例如 150.50"
+
+msgid "e.g. 100"
+msgstr "例如 100"
+
+msgid "Portfolio is Empty"
+msgstr "投资组合为空"
+
+msgid "No Alert Time Available"
+msgstr "警报时间尚无"
+
+msgid "No Alert Yet"
+msgstr "警报尚无"

@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 import streamlit as st
 import time
 from streamlit_autorefresh import st_autorefresh
+import gettext
+import os
 
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
@@ -269,7 +271,7 @@ def plot_live_page(db, stock_selector, interval):
                 border-radius: 10px;
                 background-color: #f9f9f9;
             ">
-            No Alert Time Available
+            {_("No Alert Time Available")}
             </div>
             """, unsafe_allow_html=True)
 
@@ -285,7 +287,7 @@ def plot_live_page(db, stock_selector, interval):
                 border-radius: 10px;
                 background-color: #f9f9f9;
             ">
-            No Alert Yet
+            {_("No Alert Yet")} 
             </div>
             """, unsafe_allow_html=True)
 
@@ -294,6 +296,21 @@ def plot_live_page(db, stock_selector, interval):
 
 
 def short_term_dashboard():
+    
+    # Set up the gettext translation
+    locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
+    lang = 'en'  # Default language
+    # Function to initialize and update translations
+    def set_translation(language):
+        global _
+        translation = gettext.translation(
+            'messages',  # Domain
+            localedir=locale_dir,
+            languages=[language],
+            fallback=True
+        )
+        translation.install()
+        _ = translation.gettext
     def initialize_mongo_client():
         client = pymongo.MongoClient(st.secrets["mongo"]["host"])
         return client[DB_NAME]
@@ -305,13 +322,13 @@ def short_term_dashboard():
     
     intervals = DESIRED_STREAMING_INTERVAL
     # Streamlit UI
-    st.markdown("<h2 style='text-align: center;'>Short Term Alerts Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>{}</h2>".format(_("Short Term Alerts Dashboard")), unsafe_allow_html=True)
     
     col1, col2 = st.columns([1, 1])
     with col1:
-        stock_selector = st.selectbox('Select Stock', options=options, index=len(options) - 1)
+        stock_selector = st.selectbox(_("Select Stock"), options=options, index=len(options) - 1)
     with col2:
-        intervals_selector = st.selectbox('Select Interval', options=intervals, index=len(intervals) - 1)
+        intervals_selector = st.selectbox(_("Select Interval"), options=intervals, index=len(intervals) - 1)
     # Continuously update the chart every minute
     st_autorefresh(interval=60000, limit=None)
     plot_live_page(db, stock_selector, intervals_selector)
