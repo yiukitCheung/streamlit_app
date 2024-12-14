@@ -1007,7 +1007,7 @@ def user_section(user_col, current_alerts_dict):
     stock_pick_section(current_alerts_dict)
     # Symbol Exp Return Section
     symbol_exp_return_section(user_col)
-# 
+    # Portfolio Section
     portfolio_section()
     
 def market_section(main_col):
@@ -1033,21 +1033,21 @@ def market_section(main_col):
                 "sector": _("Sector"),
                 "bond": _("Bond")
             }
-
+            
             # Reverse mapping for lookup
             display_to_internal = {v: k for k, v in instrument_mapping.items()}
-
+            
             # Display the selectbox with translated options
             selected_display_value = st.selectbox(
                 _("Select Instrument"),
                 options=list(instrument_mapping.values()),
                 key="instrument_dropdown"
             )
-
+            
             # Get the internal value based on the selected display value
             selected_instrument = display_to_internal[selected_display_value]
             st.session_state['instrument'] = selected_instrument  # Use the internal value
-
+            
         # Symbol selection dropdown
         with symbol_col:
             if 'instrument' not in st.session_state:
@@ -1096,6 +1096,7 @@ def market_section(main_col):
             except Exception as e:
                 st.error(f"No symbols found for this instrument, please select another one.")
                 return
+        
         # Chart type radio buttons
         with chart_type_col:
             # Mapping of internal values to display values
@@ -1104,7 +1105,6 @@ def market_section(main_col):
                 "Cumulative Return": _("Cumulative Return"),
                 "Candlesticks": _("Candlesticks")
             }
-
             # Reverse mapping for lookup
             display_to_internal = {v: k for k, v in chart_type_mapping.items()}
             
@@ -1123,8 +1123,8 @@ def market_section(main_col):
                         3: _("Short-Medium Term"),
                         5: _("Medium Term"),
                         8: _("Medium-Long Term"),
-                        13: _("Long Term")}
-            
+                        13: _("Long Term")
+                        }
             # Fetch alert data
             try:
                 alert_data = fetch_alert_data(st.session_state['instrument'], selected_symbol)
@@ -1137,9 +1137,11 @@ def market_section(main_col):
                 distinct_intervals = alert_data['interval'].unique()
                 interval_labels = [interval_mapping[interval] for interval in distinct_intervals]
                 label_to_interval = {v: k for k, v in interval_mapping.items()}
+                
             except KeyError as e:
                 st.error(_("No data found for this instrument, please select another one."))
                 return
+            
             # Slidebar for interval selection
             selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider',
                                             help=_("Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."))
@@ -1161,7 +1163,7 @@ def market_section(main_col):
                     elif "velocity_negotiating" in cur_alert_data['velocity_alert']['alert_type']:
                         return "yellow"  # Neutral signal
                 return "grey"  # Default for consolidating
-
+            
             # Update dot color based on the logic
             dot_colors = [
                 get_dot_color(cur_alert_data) if "velocity_maintained" in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey",
@@ -1172,7 +1174,7 @@ def market_section(main_col):
                 "velocity_weak" not in cur_alert_data['velocity_alert'].get('alert_type', '') and
                 "velocity_loss" not in cur_alert_data['velocity_alert'].get('alert_type', '') else "grey"
             ]
-
+            
             # Display the dots with the correct color and uniform text alignment
             st.markdown(tooltip_css, unsafe_allow_html=True)
             st.markdown(f"""
@@ -1200,11 +1202,11 @@ def market_section(main_col):
                     
                 </div>
             """, unsafe_allow_html=True)
+        
         with chart_col:
             try:
-                
+                # Plot the chart
                 chart = overview_chart(st.session_state['instrument'], selected_symbol, selected_chart_type, selected_interval)
-
                 st.plotly_chart(chart, use_container_width=True)
             except Exception as e:
                 st.error(_("System Error, please try again later."))
@@ -1337,6 +1339,7 @@ def user_dashboard():
         _('Worst Trade'),
         scrolling_message['worst_trade']
     )
+    
     # Display scrolling marquee in Streamlit
     st.markdown(
         f"""
@@ -1354,6 +1357,7 @@ def user_dashboard():
     candidate_collection = initialize_mongo_client()[DB_NAME][CANDIDATE_COLLECTION]
     current_alerts_dict = list(candidate_collection.find({"date": {"$gte": most_recent_trade_date}}))
     
+    # Display the dashboard
     market_col, user_col = st.columns([3, 2])
     with market_col:
         # Market section

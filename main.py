@@ -234,7 +234,7 @@ def main():
                     }
                     </style>
                 """, unsafe_allow_html=True)
-
+                
                 # Login section with styled header
                 st.markdown(
                     f"<h2 style='text-align: center; color: #2c3e50;'>{_('Member Login')}</h2>",
@@ -243,7 +243,7 @@ def main():
                 # Input fields with consistent styling
                 username = st.text_input(_("Username "), key="username_input", placeholder="admin") # Added space after Username to align with Password
                 password = st.text_input(_("Password "), type="password", key="password_input", placeholder="1234") # Added space after Password
-
+                
                 # Login button with validation
                 if st.button(_("Login"), key="login"):
                     if not username or not password:
@@ -259,6 +259,7 @@ def main():
                             st.rerun()
                         else:
                             st.error(_("Invalid username or password"))
+                
                 # Additional buttons with consistent styling
                 st.button(_("Sign Up"), on_click=lambda: st.session_state.update(current_page="Sign Up"))
                 st.button(_("Forgot Password?"), on_click=lambda: st.session_state.update(current_page="Forgot Password"))
@@ -268,6 +269,7 @@ def main():
                     st.session_state['username'] = "guest"
                     st.session_state['role'] = "guest"
                     st.rerun()
+                    
             with col2:
                 st.markdown(_("""
                 <div stype="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">

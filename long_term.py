@@ -418,17 +418,13 @@ def static_analysis_page(processed_col, alert_col, redis_client):
                 'Key Price Points': _("Key Price Points"),
                 'Most Trading Areas': _("Most Trading Areas")
             }
+            # Display the options with default values
             selected_options = st.multiselect("{}".format(
-                _("Key Price Areas")), options=option_mapping.values(), default=[])
-            if 'Key Price Points' in selected_options:
-                st.session_state.show_fibonacci = True
-                st.session_state.show_structure = False
-            if 'Most Trading Areas' in selected_options:
-                st.session_state.show_trading_areas = True
-                st.session_state.show_structure = False
-            if 'Key Price Points' not in selected_options and 'Most Trading Areas' not in selected_options:
-                st.session_state.show_fibonacci = False
-                st.session_state.show_trading_areas = False
+                _("Key Price Areas")), options=list(option_mapping.values()), default=list(option_mapping.values()))
+            # Set defaults
+            st.session_state.show_structure = False
+            st.session_state.show_fibonacci = _("Key Price Points") in selected_options
+            st.session_state.show_trading_areas = _("Most Trading Areas") in selected_options
             
     chart_container = st.container()
     with chart_container:

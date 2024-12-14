@@ -197,8 +197,8 @@ def plot_live_page(db, stock_selector, interval):
     filtered_df = pd.DataFrame(list(filtered_query))
     filtered_live_alerts = pd.DataFrame(list(filtered_live_alerts_query))
     filtered_batch_alerts = pd.DataFrame(list(filtered_batch_alerts_query))
+    
     # Find the most frequent support
-    # Convert the 'datetime' field to datetime
     if not filtered_df.empty:
         # Ensure consistency in the datetime format
         filtered_df['datetime'] = pd.to_datetime(filtered_df['datetime'])
