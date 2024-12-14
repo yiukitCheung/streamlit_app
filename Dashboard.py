@@ -86,6 +86,7 @@ SANDBOX_COLLECTION = st.secrets['mongo']['alert_sandbox_name']
 # ============================ #
 # Data Section
 # ============================ #
+    
 @st.cache_data
 def get_most_current_trading_date() -> str:
     today = pd.to_datetime('today')
@@ -713,6 +714,22 @@ def compute_portfolio_metrics(username: str):
 
     return metrics
 
+def increment_dashboard_view_count():
+    """Increment the dashboard view count in Redis."""
+    try:
+        redis_client = initialize_redis()
+        redis_client.incr("dashboard_view_count")
+    except Exception as e:
+        st.error(f"Error incrementing view count: {e}")
+
+def get_dashboard_view_count():
+    """Retrieve the dashboard view count from Redis."""
+    try:
+        redis_client = initialize_redis()
+        return redis_client.get("dashboard_view_count") or 0
+    except Exception as e:
+        st.error(f"Error retrieving view count: {e}")
+        return 0
 
 # ============================ #
 # Visualization Section        #
@@ -1275,6 +1292,7 @@ def ai_section():
             """, unsafe_allow_html=True)
             
 def user_dashboard():
+
     # Set up the gettext translation
     locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
     lang = 'en'  # Default language
@@ -1339,6 +1357,8 @@ def user_dashboard():
         _('Worst Trade'),
         scrolling_message['worst_trade']
     )
+    # Increment the view count each time the dashboard is accessed
+    increment_dashboard_view_count()
     
     # Display scrolling marquee in Streamlit
     st.markdown(
@@ -1346,6 +1366,7 @@ def user_dashboard():
         <div class="marquee-container">
             <span class="marquee">
                 {_("CondVest Alerts Performance")}: {scrolling_text}
+                {_("Dashboard Views")}: {get_dashboard_view_count()}
             </span>
         </div>
         """,
