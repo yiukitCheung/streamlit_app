@@ -241,8 +241,8 @@ def main():
                     unsafe_allow_html=True
                 )                   
                 # Input fields with consistent styling
-                username = st.text_input(_("Username "), key="username_input", placeholder="admin") # Added space after Username to align with Password
-                password = st.text_input(_("Password "), type="password", key="password_input", placeholder="1234") # Added space after Password
+                username = st.text_input(_("Username "), key="username_input") # Added space after Username to align with Password
+                password = st.text_input(_("Password "), type="password", key="password_input") # Added space after Password
                 
                 # Login button with validation
                 if st.button(_("Login"), key="login"):
