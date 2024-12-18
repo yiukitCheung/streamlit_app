@@ -355,7 +355,7 @@ msgid "Portfolio Analytics Report"
 msgstr "投资组合分析报告"
 
 msgid "Dear user, you don't have any portfolio yet, you can add one by navigating to EDIT PORTFOLIO in the sidebar."
-msgstr "亲爱的用户，您还没有任何投资组合，您可以通过在侧边栏中导航到EDIT PORTFOLIO来添加一个。"
+msgstr "亲爱的用户，您还没有任何投资组合，您可以通过在侧边栏中导航到编辑投资组合来添加一个。"
 
 msgid "We will leverage data-driven approach and AI to monitor and analyze your portfolio in Real-Time!!"
 msgstr "我们将利用数据驱动的方法和AI来监控和分析您的投资组合，实时进行！！"

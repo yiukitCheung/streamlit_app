@@ -92,7 +92,7 @@ def main():
     set_translation(lang)
 
     # Language Selector
-    language = st.sidebar.radio("", ['English', '中文'])
+    language = st.sidebar.radio("", ['English', '中文'], label_visibility="collapsed")
     if language == '中文':
         lang = 'zh'
         st.session_state['language'] = 'zh'
@@ -142,9 +142,9 @@ def main():
             st.button(_("📈 Stock InDepth"), on_click=lambda: st.session_state.update(current_page="Long Term"))
             st.button(_("⚡ Fast Money"), on_click=lambda: st.session_state.update(current_page="Short Term"))          
     elif st.session_state['current_page'] == "Sign Up":
-        st.sidebar.button(_("Log in"), on_click=lambda: st.session_state.update(current_page="Login"))
+        st.sidebar.button(_("Log in"), on_click=lambda: st.session_state.update(current_page="Login"), key="login_button")
     elif st.session_state['current_page'] == "Forgot Password":
-        st.sidebar.button(_("Back to Login"), on_click=lambda: st.session_state.update(current_page="Login"))
+        st.sidebar.button(_("Back to Login"), on_click=lambda: st.session_state.update(current_page="Login"), key="login_button")
     # Display page content based on the current page
     placeholder = st.empty()
     with placeholder.container():

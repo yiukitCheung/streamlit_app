@@ -1161,7 +1161,8 @@ def market_section(main_col):
             
             # Slidebar for interval selection
             selected_label = st.select_slider(" ", options=interval_labels, key='interval_slider',
-                                            help=_("Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."))
+                                            help=_("Keep in mind, the longer the term, the stronger the signal. Focusing on Short Term only is a bit risky 🤫."),
+                                            label_visibility="collapsed")
             selected_interval = label_to_interval[selected_label]
             
             # Fetch the latest alert data for the selected interval
