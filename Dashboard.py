@@ -1239,7 +1239,7 @@ def ai_section():
             background-color: #f0f8ff;
             border-radius: 10px;
             margin: 10px 0;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
             color: #2c3e50;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);

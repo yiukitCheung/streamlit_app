@@ -74,7 +74,7 @@ def unsubscribe_all_alerts(username: str):
         conn.close()
     except Exception as e:
         st.error(f"Error unsubscribing all alerts: {e}")
-        
+
 def settings_page():
     # Check if the alert settings column exists, if not create it
     check_alert_settings_col()
@@ -83,7 +83,7 @@ def settings_page():
     
     username = st.session_state['username']
     # Add alert settings to the database
-    send_all_alerts = st.radio("Send All Alerts", ["Yes", "No"])
+    send_all_alerts = st.selectbox("Send All Alerts", ["Yes", "No"], key="send_all_alerts")
     if send_all_alerts == "Yes":
         add_alert_settings("all", username)   
         st.success("All alerts will be sent")
