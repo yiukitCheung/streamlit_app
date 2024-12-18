@@ -92,10 +92,16 @@ def main():
     set_translation(lang)
 
     # Language Selector
-    language = st.sidebar.radio("", ['English', '中文'], label_visibility="collapsed")
+    language = st.sidebar.radio("", ['English', 'French', 'Spanish', '中文'], key="language_selector")
     if language == '中文':
         lang = 'zh'
         st.session_state['language'] = 'zh'
+    elif language == 'French':
+        lang = 'fr'
+        st.session_state['language'] = 'fr'
+    elif language == 'Spanish':
+        lang = 'es'
+        st.session_state['language'] = 'es'
     else:
         lang = 'en'
         st.session_state['language'] = 'en'
