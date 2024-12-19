@@ -172,6 +172,20 @@ def fetch_data(instrument, interval):
         if cached_data := redis_client.get(redis_key):
             
             data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+            cached_date = data['date'].max()
+            
+            if cached_date.date() < pd.to_datetime('today').date():
+                
+                # Use MongoDB projection and sorting at database level
+                cursor = collection_obj.find(
+                    {
+                        "instrument": instrument,
+                        "interval": interval,
+                        "date": {"$gte": pd.Timestamp.now() - pd.Timedelta(days=1825)}
+                    },
+                    {"_id": 0}
+                ).sort("date", 1)
+        
         else:
             # Use MongoDB projection and sorting at database level
             cursor = collection_obj.find(
@@ -1166,6 +1180,7 @@ def market_section(main_col):
             selected_interval = label_to_interval[selected_label]
             
             # Fetch the latest alert data for the selected interval
+            alert_data = alert_data.sort_values(by='date', ascending=True)
             cur_alert_data = alert_data[alert_data['interval'] == selected_interval].iloc[-1]['alerts']
             
             # Function to get dot color based on alert data
@@ -1174,10 +1189,13 @@ def market_section(main_col):
                 if "velocity_alert" in cur_alert_data:
                     if "velocity_maintained" in cur_alert_data['velocity_alert']['alert_type']:
                         return "green"  # Healthy signal
+                    
                     elif "velocity_loss" in cur_alert_data['velocity_alert']['alert_type']:
                         return "red"  # Pessimistic signal
+                    
                     elif "velocity_weak" in cur_alert_data['velocity_alert']['alert_type']:
                         return "orange"  # Moderate or risk signal
+                    
                     elif "velocity_negotiating" in cur_alert_data['velocity_alert']['alert_type']:
                         return "yellow"  # Neutral signal
                 return "grey"  # Default for consolidating
