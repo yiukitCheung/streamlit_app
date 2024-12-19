@@ -890,10 +890,10 @@ def symbol_exp_return_section(main_col):
                         st.markdown(f"""
                             <div style='display: flex; justify-content: space-around;'>
                                 <div style='color: #4CAF50; text-align: center;'>
-                                    <p style='font-size:24px; font-weight:bold'> ${expected_earnings:+,.2f}</p>
+                                    <p style='font-size:24px; font-weight:bold'> {_('Expected Earnings')}: ${expected_earnings:+,.2f}</p>
                                 </div>
                                 <div style='color: #4CAF50; text-align: center;'>
-                                    <p style='font-size:24px; font-weight:bold'>BUY 📈</p>
+                                    <p style='font-size:24px; font-weight:bold'>{_('BUY')} 📈</p>
                                 </div>
                             </div>
                         """, unsafe_allow_html=True)
@@ -902,10 +902,10 @@ def symbol_exp_return_section(main_col):
                         st.markdown(f"""
                             <div style='display: flex; justify-content: space-around;'>
                                 <div style='color: #FF0000; text-align: center;'>
-                                    <p style='font-size:24px; font-weight:bold'>Expected Loss: ${expected_loss:+,.2f}</p>
+                                    <p style='font-size:24px; font-weight:bold'>{_('Expected Loss')}: ${expected_loss:+,.2f}</p>
                                 </div>
                                 <div style='color: #FF0000; text-align: center;'>
-                                    <p style='font-size:24px; font-weight:bold'>SELL 📉</p>
+                                    <p style='font-size:24px; font-weight:bold'>{_('SELL')} 📉</p>
                                 </div>
                             </div>
                         """, unsafe_allow_html=True)
