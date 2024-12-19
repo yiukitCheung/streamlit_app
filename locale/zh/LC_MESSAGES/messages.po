@@ -470,3 +470,6 @@ msgstr "警报尚无"
 
 msgid "Experience CondVest without an account!!"
 msgstr "体验CondVest，无需注册!!"
+
+msgid "CondVest AI Advisor Chat"
+msgstr "CondVest AI 投资顾问"

@@ -1332,9 +1332,9 @@ def ai_section():
             color: #2c3e50;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         ">
-            CondVest AI Advisor Chat
+            {}
         </div>
-    """, unsafe_allow_html=True)
+    """.format(_('CondVest AI Advisor Chat')), unsafe_allow_html=True)
 
     # User Input Section
     prompt = st.text_input(

@@ -438,3 +438,6 @@ msgstr "Pas Encore d'Alerte"
 
 msgid "Experience CondVest without an account!!"
 msgstr "Experience CondVest sans un compte!!"
+
+msgid "CondVest AI Advisor Chat"
+msgstr "Chat Conseiller IA Condvest"
