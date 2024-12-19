@@ -224,8 +224,7 @@ def fetch_data(instrument, interval):
     try:
         # Check if data is cached in Redis and deserialize in one step
         if cached_data := redis_client.get(redis_key):
-            
-            data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+            data = pd.read_json(cached_data)
             cached_date = data['date'].max()
             
             if cached_date.date() < pd.to_datetime('today').date():
