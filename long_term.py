@@ -86,10 +86,13 @@ def fetch_alert_data(redis_client, collection, stock_symbol, interval):
     # Try to get cached data from Redis
     try:
         cached_data = redis_client.get(redis_key)
+        
         if cached_data:
+            
             return pd.read_json(io.StringIO(cached_data.decode("utf-8")))
     except Exception as e:
         st.warning(f"Redis error: {str(e)}")
+    
     
     # Fetch and process MongoDB data using aggregation pipeline
     pipeline = [
@@ -156,38 +159,25 @@ def compute_price_change(latest_price, previous_price):
         return None
     return ((latest_price - previous_price) / previous_price) * 100
 
-
 # ============================
 # Chart Section
 # ============================
 def candle_chart(filtered_df, latest_data, alert_df):
 
-    # Get the structural areas
-    
-    # Initialize fibonacci levels in session state if they don't exist
-    fib_levels = ['fib_236', 'fib_382', 'fib_618', 'fib_786', 'fib_1236', 'fib_1382']
-    for level in fib_levels:
-        if level not in st.session_state:
-            st.session_state[level] = alert_df['fibonacci_retracement'].iloc[-1][level]
-    
-    # Initialize kernel density levels in session state if they don't exist
-    kde_levels = ['top', 'bottom', 'second_top', 'second_bottom']
-    for level in kde_levels:
-        if level not in st.session_state:
-            st.session_state[level] = alert_df['kernel_density_estimation'].iloc[-1][level]
-            
-    # Assign values from session state
-    fib_236 = st.session_state.fib_236
-    fib_382 = st.session_state.fib_382  
-    fib_618 = st.session_state.fib_618
-    fib_786 = st.session_state.fib_786
-    fib_1236 = st.session_state.fib_1236
-    fib_1382 = st.session_state.fib_1382
-    
-    top = st.session_state.top
-    bottom = st.session_state.bottom
-    second_top = st.session_state.second_top
-    second_bottom = st.session_state.second_bottom
+    # Get the structural areas from alert_df directly
+    # Get fibonacci levels
+    fib_236 = alert_df['fibonacci_retracement'].iloc[-1]['fib_236']
+    fib_382 = alert_df['fibonacci_retracement'].iloc[-1]['fib_382']
+    fib_618 = alert_df['fibonacci_retracement'].iloc[-1]['fib_618'] 
+    fib_786 = alert_df['fibonacci_retracement'].iloc[-1]['fib_786']
+    fib_1236 = alert_df['fibonacci_retracement'].iloc[-1]['fib_1236']
+    fib_1382 = alert_df['fibonacci_retracement'].iloc[-1]['fib_1382']
+
+    # Get kernel density levels
+    top = alert_df['kernel_density_estimation'].iloc[-1]['top']
+    bottom = alert_df['kernel_density_estimation'].iloc[-1]['bottom']
+    second_top = alert_df['kernel_density_estimation'].iloc[-1]['second_top']
+    second_bottom = alert_df['kernel_density_estimation'].iloc[-1]['second_bottom']
     
     # If live data exists, append it to the dataframe
     if latest_data and all(v is not None for v in latest_data.values()) and filtered_df['interval'].iloc[-1] == 1:
@@ -377,9 +367,6 @@ def price_change_section(redis_client, stock_selector, processed_col):
         # Fetch processed data
         processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
         
-        st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
-            _("Daily Price Change")), 
-            unsafe_allow_html=True)
         # Get latest data
         latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
         
@@ -416,20 +403,60 @@ def price_change_section(redis_client, stock_selector, processed_col):
             price_change = 0
             color = 'grey'
             arrow = ''
-        
-        # Refresh button
-        if st.button("Refresh", key="refresh_button"):
-            st.rerun()
     
-    # Display price change
-    st.markdown(f"""
-        <div style="text-align: center;">
-            <div style="font-size:48px; font-weight:bold; color:{color};">
-                {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
+        # Display price change
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <div style="font-size:48px; font-weight:bold; color:{color};">
+                    {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+def price_section(redis_client, stock_selector, processed_col):
+    with st.container():
+        # Fetch processed data
+        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
+        
+        # Get latest data
+        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+        
+        # Dynamically compute price change
+        # During trading hours
+        if latest_data:
+            
+            # Get latest price
+            latest_price = latest_data.get('close')
+            previous_price = processed_df.iloc[-1]['close']
+
+            # Determine color and arrow
+            color = 'green' if latest_price > previous_price else 'red'
+            arrow = '▲' if latest_price > previous_price else '▼'
+            
+        # After trading hours
+        elif not latest_data:
+            # Get latest price
+            latest_data = processed_df.iloc[-1]['close']
+            previous_data = processed_df.iloc[-2]['close']
+            
+            # Determine color and arrow
+            color = 'green' if latest_data > previous_data else 'red'
+            arrow = '▲' if latest_data > previous_data else '▼'
+
+        # If no data is available
+        else:
+            color = 'grey'
+            arrow = ''
     
+        # Display price change
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <div style="font-size:48px; font-weight:bold; color:{color};">
+                    Price: {latest_price:.2f}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
 def stock_config_section(alert_col):
     with st.container():
         # Reduce space around selection components
@@ -505,7 +532,6 @@ def chart_section(processed_col, alert_col, redis_client, stock_selector, interv
         with st.spinner("{}".format(
             _("Loading Alert Data..."))):
             alert_df = fetch_alert_data(redis_client, alert_col, stock_selector, interval_selector)
-            
         # Create placeholder for the chart
         fig = candle_chart(processed_df, latest_data, alert_df)
         st.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
@@ -532,10 +558,12 @@ def Stock_Indepth_Dashboard(processed_col, alert_col, redis_client):
     
     with price_col:
         # Price Section
+        price_section(redis_client, stock_selector, processed_col)
+        
+        # Price Change Section
         price_change_section(redis_client, stock_selector, processed_col)
         
     # Display the alerts
-    
     display_alerts(alert_df)
 
 def long_term_dashboard():
