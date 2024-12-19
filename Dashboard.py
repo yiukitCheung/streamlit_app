@@ -18,51 +18,52 @@ import streamlit_vertical_slider as svs
 from redis import Redis
 import gettext
 import os
+import json
 
-
-    
-client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
-thread = client.beta.threads.create()  # Create a thread for the conversation
+# ============================
+# ChatGPT Configuration
+# ============================
+ai_client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 
 # Define CSS for tooltips
 tooltip_css = """
 <style>
 .centered-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100px; /* Adjust height as needed */
-}
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px; /* Adjust height as needed */
+    }
 
-.tooltip {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-}
+    .tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    }
 
-.tooltip .tooltiptext {
-  visibility: hidden;
-  width: 200px;
-  background-color: black;
-  color: #fff;
-  text-align: center;
-  border-radius: 6px;
-  padding: 5px;
-  position: absolute;
-  z-index: 1;
+    .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
 
-  /* Center the tooltip horizontally */
-  left: 50%;
-  transform: translateX(-50%);
+    /* Center the tooltip horizontally */
+    left: 50%;
+    transform: translateX(-50%);
 
-  /* Position tooltip above the element */
-  bottom: 150%;
-}
+    /* Position tooltip above the element */
+    bottom: 150%;
+    }
 
-.tooltip:hover .tooltiptext {
-  visibility: visible;
-}
-</style>
+    .tooltip:hover .tooltiptext {
+    visibility: visible;
+    }
+    </style>
 """
 
 # MongoDB Configuration
@@ -83,10 +84,63 @@ CANDIDATE_COLLECTION = st.secrets['mongo']['candidate_collection_name']
 PORTFOLIO_COLLECTION = st.secrets['mongo']['portfolio_collection_name']
 SANDBOX_COLLECTION = st.secrets['mongo']['alert_sandbox_name']
 
+
+# AI Pre-configured Messages
+PRECONFIGURED_MESSAGE = [
+    {
+        "role": "system",
+        "content": "You are CondVest Advisor, a specialized financial AI assistant. You must strictly adhere to the following guidelines:\n\n"
+                "1. Provide guidance ONLY based on the CondVest Platform's features and functionalities\n"
+                "2. Focus on explaining the dashboard components and their practical usage\n"
+                "3. Use clear, simple language accessible to beginners while maintaining accuracy\n"
+                "4. Never provide general financial advice or recommendations outside the platform\n"
+                "5. When explaining technical concepts:\n"
+                "   - Break them down into simple terms\n"
+                "   - Use concrete examples from the platform\n"
+                "   - Relate them directly to platform features\n"
+                "6. Respond only about:\n"
+                "   - Dashboard features and metrics\n"
+                "   - Platform tools and indicators\n"
+                "   - How to interpret platform signals\n"
+                "   - Platform-specific risk management\n\n"
+                "Dashboard Overview:\n\n"
+                "Market Overview (Top Left):\n"
+                "- Shows overall market health through light indicators\n"
+                "- Optimistic (Green): Strong uptrend\n"
+                "- Neutral (Yellow): Slowing momentum\n"
+                "- Pessimistic (Red): Weakening trend\n"
+                "- Consolidating (Grey): Sideways movement\n\n"
+                "Portfolio Tracking (Bottom Right):\n"
+                "- Data-driven risk management and tracking service in real time\n"
+                "- Greed/Risk indices\n"
+                "- Real-time P/L tracking\n\n"
+                "Profit/Loss Projection Tool (Middle Right):\n"
+                "- Symbol-specific projections\n"
+                "- Technical analysis metrics\n"
+                "- Support/resistance levels\n"
+                "- Trend indicators\n\n"
+                "CondVest Pick (Top Right):\n"
+                "- Buy signals based on trend reversals\n"
+                "- Bounce opportunities at support\n"
+                "- Built-in risk management\n"
+                "- Stop-loss recommendations\n\n"
+                "Stock Analysis Dashboard:\n"
+                "- Up Trend Strength: Hold indicator\n"
+                "- Support/Resistance: Entry/exit signals\n"
+                "- Momentum: Day trading signals\n\n"
+                "Strictly avoid:\n"
+                "- General market commentary\n"
+                "- Non-platform trading advice\n"
+                "- External tool recommendations\n"
+                "- Personal opinions on trades\n\n"
+                "Focus on helping users understand and effectively use CondVest's tools while maintaining strict adherence to platform-specific guidance."
+    }
+]
+
 # ============================ #
 # Data Section
 # ============================ #
-    
+
 @st.cache_data
 def get_most_current_trading_date() -> str:
     today = pd.to_datetime('today')
@@ -1011,7 +1065,7 @@ def stock_pick_section(cur_alert_dict):
         elif selected_term == "Mid Term":
             acc_alert = 'long_accumulating'
             main_alert = 'long_main_accumulating'
-        else:  # Long Term
+        else:
             acc_alert = 'ext_long_accelerating'
             main_alert = 'ext_accumulating'
 
@@ -1246,10 +1300,15 @@ def market_section(main_col):
                 st.plotly_chart(chart, use_container_width=True)
             except Exception as e:
                 st.error(_("System Error, please try again later."))
-                return
-
+                return  
+            
+# AI Chatbox Section
 def ai_section():
-    # Create chat section
+    # Load pre-configured system message into session state if not already loaded
+    if "messages" not in st.session_state:
+        st.session_state.messages = PRECONFIGURED_MESSAGE
+
+    # Chat Header
     st.markdown("""
         <div class="chat-header" style="
             text-align: center;
@@ -1262,27 +1321,23 @@ def ai_section():
             color: #2c3e50;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         ">
-            {}
+            CondVest AI Advisor Chat
         </div>
-    """.format(_("Condvest AI Advisor Chat")),
-    unsafe_allow_html=True)
-
-    # Create chat container
-    st.markdown("""
-        <div class="chat-container">
-            <div class="chat-messages">
     """, unsafe_allow_html=True)
-                    
-    # Accept user input
-    if prompt := st.text_input("", 
-                            placeholder=_("Ask me what is this about and how does it work?"), 
-                            help=_("Type your question here and press Enter"), 
-                            label_visibility="collapsed"):
 
-        # Add user message to chat history
+    # User Input Section
+    prompt = st.text_input(
+        "",
+        placeholder="Ask me how this works or about platform features.",
+        help="Type your question here and press Enter.",
+        label_visibility="collapsed"
+    )
+
+    if prompt:
+        # Add user message to session state
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Display user message
+
+        # Display User Message
         with st.chat_message("user"):
             st.markdown(f"""
                 <div style="width: 100%; word-wrap: break-word;">
@@ -1290,26 +1345,36 @@ def ai_section():
                 </div>
             """, unsafe_allow_html=True)
 
-        # Get and display assistant response
-        with st.chat_message("assistant"):
-            condvest_advisor = client.chat.completions.create(
-                                model="gpt-4o-mini",
-                                messages=st.session_state.messages,
-                                response_format={
-                                    "type": "text"
-                                },
-                                temperature=0.5,
-                                max_tokens=2048,
-                                top_p=1,
-                                frequency_penalty=0,
-                                presence_penalty=0)
-            condvest_advisor_response = condvest_advisor.choices[0].message.content
-            st.markdown(f"""
-                <div style="width: 100%; word-wrap: break-word;">
-                    {condvest_advisor_response}
-                </div>
-            """, unsafe_allow_html=True)
-            
+        # Generate and Display Assistant Response
+        try:
+            with st.chat_message("assistant"):
+                response = ai_client.chat.completions.create(
+                    model="gpt-4o-mini",  # Replace with your model
+                    messages=st.session_state.messages,
+                    temperature=0.5,
+                    max_tokens=2048,
+                    top_p=1,
+                    frequency_penalty=0,
+                    presence_penalty=0
+                )
+
+                # Extract response content
+                assistant_response = response.choices[0].message.content
+
+                # Add assistant response to session state
+                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+
+                # Display Assistant Message
+                st.markdown(f"""
+                    <div style="width: 100%; word-wrap: break-word;">
+                        {assistant_response}
+                    </div>
+                """, unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+
+
 def user_dashboard():
 
     # Set up the gettext translation
