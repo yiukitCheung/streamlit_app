@@ -269,7 +269,26 @@ def main():
                 # Additional buttons with consistent styling
                 st.button(_("Sign Up"), on_click=lambda: st.session_state.update(current_page="Sign Up"))
                 st.button(_("Forgot Password?"), on_click=lambda: st.session_state.update(current_page="Forgot Password"))
-                if st.button(_("Please Check Us Out")):
+                st.markdown("""
+                    <style>
+                    .demo-button {
+                        font-size: 20px !important;
+                        padding: 15px 25px !important;
+                        background: linear-gradient(45deg, rgba(46, 139, 87, 0.05), rgba(46, 139, 87, 0.15)) !important;
+                        border: 2px solid #2E8B57 !important;
+                        text-align: center !important;
+                        color: #2E8B57 !important;
+                        border-radius: 8px !important;
+                        transition: all 0.3s ease !important;
+                    }
+                    .demo-button:hover {
+                        background: linear-gradient(45deg, rgba(46, 139, 87, 0.15), rgba(46, 139, 87, 0.25)) !important;
+                        box-shadow: 0 4px 12px rgba(46, 139, 87, 0.2) !important;
+                        transform: translateY(-2px) !important;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+                if st.button(_("Please Check Us Out"), key="demo_button", help=_("Experience CondVest without an account!!"), type="primary"):
                     st.session_state.update(current_page="Main Page")
                     st.session_state['logged_in'] = True
                     st.session_state['username'] = "guest"

@@ -467,3 +467,6 @@ msgstr "警报时间尚无"
 
 msgid "No Alert Yet"
 msgstr "警报尚无"
+
+msgid "Experience CondVest without an account!!"
+msgstr "体验CondVest，无需注册!!"

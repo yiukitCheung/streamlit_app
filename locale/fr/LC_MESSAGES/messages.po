@@ -435,3 +435,6 @@ msgstr "Aucun Horaire d'Alerte Disponible"
 
 msgid "No Alert Yet"
 msgstr "Pas Encore d'Alerte"
+
+msgid "Experience CondVest without an account!!"
+msgstr "Experience CondVest sans un compte!!"

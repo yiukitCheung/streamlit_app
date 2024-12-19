@@ -93,7 +93,7 @@ class ExpectedReturnRiskAnalyzer:
             for level in ['fib_236', 'fib_382', 'fib_500', 'fib_618', 
                         'fib_786', 'fib_1236', 'fib_1382']:
                 available_point[entry['interval']][level].append(fib_levels[level])
-        
+
         return available_point, current_price
 
     def find_sup_res(self, symbol, interval):
@@ -105,35 +105,49 @@ class ExpectedReturnRiskAnalyzer:
         expected_resistance = {}
 
         # Find support and resistance levels
-        for interval in sorted(available_point.keys()):
+        intervals = sorted(available_point.keys())
+        for interval in intervals:
             # Check EMAs
             ema_support, ema_resistance = self._check_ema_levels(available_point[interval], close_price)
-            if ema_support and 'emas' not in expected_support:
+            if ema_support != float('-inf') and 'emas' not in expected_support:
                 expected_support['emas'] = ema_support
-            if ema_resistance and 'emas' not in expected_resistance:
+            if ema_resistance != float('inf') and 'emas' not in expected_resistance:
                 expected_resistance['emas'] = ema_resistance
+            
 
             # Check structural areas
             area_support, area_resistance = self._check_structural_areas(available_point[interval], close_price)
-            if area_support and 'dense_area' not in expected_support:
+            if area_support != float('-inf') and 'dense_area' not in expected_support:
                 expected_support['dense_area'] = area_support
-            if area_resistance and 'dense_area' not in expected_resistance:
+            if area_resistance != float('inf') and 'dense_area' not in expected_resistance:
                 expected_resistance['dense_area'] = area_resistance
 
             # Check fibonacci levels
             fib_support, fib_resistance = self._check_fibonacci_levels(available_point[interval], close_price)
-            if fib_support and 'fibonacci' not in expected_support:
+            if fib_support != float('-inf') and 'fibonacci' not in expected_support:
                 expected_support['fibonacci'] = fib_support
-            if fib_resistance and 'fibonacci' not in expected_resistance:
+            if fib_resistance != float('inf') and 'fibonacci' not in expected_resistance:
                 expected_resistance['fibonacci'] = fib_resistance
 
-        st.write(f'{symbol}:{expected_support},{expected_resistance}')
         return expected_support, expected_resistance
-
+    
     def _check_ema_levels(self, interval_data, close_price):
+        # Check if support and resistance is in the short term ema
         min_ema = min(interval_data['13ema'][0], interval_data['8ema'][0])
         support = min_ema if close_price > min_ema else float('-inf')
         resistance = min_ema if close_price < min_ema else float('inf')
+        
+        # If support and resistance is not in the short term ema, check the long term ema
+        if support == float('-inf'):
+            # Check if the support is the 144ema or 169ema
+            min_ema = min(interval_data['144ema'][0], interval_data['169ema'][0])
+            support = min_ema if close_price > min_ema else float('-inf')
+                
+        if resistance == float('inf'):
+            # Check if the resistance is the 144ema or 169ema
+            max_ema = max(interval_data['144ema'][0], interval_data['169ema'][0])
+            resistance = max_ema if close_price < max_ema else float('inf')
+            
         return support, resistance
 
     def _check_structural_areas(self, interval_data, close_price):
