@@ -614,7 +614,6 @@ def calculate_expected_value(symbol: str, instrument: str, selected_period: int)
     """Separate function for the actual calculation logic"""
     exp_return_risk_analyzer = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = exp_return_risk_analyzer.find_sup_res(symbol.upper(), selected_period)
-    
     if not expected_support or not expected_resistance:
         return 0, 0, 0
     
@@ -642,7 +641,7 @@ def calculate_expected_value(symbol: str, instrument: str, selected_period: int)
             break
     
     cur_price = fetch_data(instrument, 1).loc[fetch_data(instrument, 1)['symbol'] == symbol.upper()].iloc[-1]['close']
-    
+    st.write(cur_price)
     expected_loss = float(f"{((support - cur_price) / cur_price) * 100:.2f}")
     expected_profit = float(f"{((resistance - cur_price) / cur_price) * 100:.2f}")
     profit_loss_ratio = abs(float(f"{expected_profit / expected_loss:.2f}"))
@@ -702,7 +701,6 @@ def find_expected_value(symbol: str, instrument:str, selected_period: int):
         return expected_loss, expected_profit, profit_loss_ratio
             
     except Exception as e:
-        st.warning(f"Redis error: {e}, calculating without cache")
         return calculate_expected_value(symbol, instrument, selected_period)
 
 @st.cache_data
@@ -718,7 +716,7 @@ def compute_portfolio_metrics(username: str):
     # Try to get cached results
     cached_result = redis_client.get(cache_key)
     if cached_result:
-        metrics = json.loads(cached_result.decode())
+        metrics = json.loads(cached_result)
         return metrics
 
     # Initialize metrics if not exist
@@ -731,34 +729,41 @@ def compute_portfolio_metrics(username: str):
         return False
         
     portfolio_df = pd.DataFrame(user_portfolio['portfolio']).T
-    symbol_list = portfolio_df.index.tolist()
-    
     # Get current prices
-    current_prices = fetch_data('equity', 1)
-    current_prices = current_prices[current_prices['symbol'].isin(symbol_list)]
-    current_prices = current_prices.groupby('symbol')['close'].last()
-    
-    # Process portfolio data
-    portfolio_df['current_close'] = portfolio_df.index.map(current_prices)
     portfolio_df['shares'] = pd.to_numeric(portfolio_df['shares'])
     portfolio_df['avg_price'] = pd.to_numeric(portfolio_df['avg_price'])
+    
+    # Process each instrument separately
+    for instrument in portfolio_df['instrument'].unique():
+        instrument_df = portfolio_df[portfolio_df['instrument'] == instrument]
+        symbol_list = instrument_df.index.tolist()
+        
+        # Get current prices for this instrument's symbols
+        current_prices = fetch_data(instrument, 1)
+        current_prices = current_prices[current_prices['symbol'].isin(symbol_list)]
+        current_prices = current_prices.groupby('symbol')['close'].last()
+        
+        # Update only the rows for this instrument
+        portfolio_df.loc[symbol_list, 'current_close'] = portfolio_df.loc[symbol_list].index.map(current_prices)
+    
+    # Convert current_close to numeric after all updates
     portfolio_df['current_close'] = pd.to_numeric(portfolio_df['current_close'])
     
     # Calculate metrics
     portfolio_df['total_cost'] = portfolio_df['shares'] * portfolio_df['avg_price']
-    portfolio_df['current_value'] = portfolio_df['shares'] * portfolio_df['current_close']
+    portfolio_df['current_value'] = portfolio_df['shares'] * portfolio_df['current_close'] 
     portfolio_df['return'] = (portfolio_df['current_value'] - portfolio_df['total_cost']) / portfolio_df['total_cost']
-    portfolio_df['return'] = portfolio_df['return'].apply(lambda x: round(x, 2))
-    
+    portfolio_df['return'] = portfolio_df['return'].apply(lambda x: round(x, 3))
     overall_return = portfolio_df['return'].mean()
-    
     # Calculate greed index
     greed_index = min(100, round(50 * np.log(1 + 2 * abs(overall_return)) / np.log(3), 2))
     
     # Calculate risk index
     total_possible_downside = 0
     for symbol in symbol_list:
-        possible_downside = find_expected_value(symbol, 1)[0]
+        instrument = portfolio_df.loc[symbol, 'instrument']
+        possible_downside = find_expected_value(symbol, instrument, 1)[0]
+        
         total_possible_downside += portfolio_df.loc[symbol, 'shares'] * possible_downside
     
     risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
@@ -780,6 +785,7 @@ def compute_portfolio_metrics(username: str):
     # Cache the results for 1 hour (3600 seconds)
     redis_client.setex(cache_key, 3600, json.dumps(metrics))
 
+    
     return metrics
 
 def increment_dashboard_view_count():

@@ -17,14 +17,15 @@ CANDI_COLLECTION = st.secrets['mongo']['candidate_collection_name']
 PORTFOLIO_COLLECTION = st.secrets['mongo']['portfolio_collection_name']
 
 
-def add_to_portfolio(symbol: str, shares: int, avg_price: float, username: str):
+def add_to_portfolio(symbol: str, instrument: str, shares: int, avg_price: float, username: str):
     
     collection_obj = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION]
     existing_customer = collection_obj.find_one({'username': username})
     symbol = symbol.upper()
     if existing_customer:
+        
         # Update the existing user's portfolio with new stock data
-        existing_customer['portfolio'][symbol] = {'shares': shares, 'avg_price': avg_price}
+        existing_customer['portfolio'][symbol] = {'shares': shares, 'avg_price': avg_price, 'instrument':instrument}
         collection_obj.update_one(
             {'username': username},
             {'$set': {'portfolio': existing_customer['portfolio']}}
@@ -96,9 +97,9 @@ def add_portfolio():
 
     # Search and add stock section
     search_stock = st.text_input(_("🔍 Search Stock:"), placeholder=_("Enter stock symbol..."))
-    
+    instrument = st.selectbox(_("Select Instrument:"), [_('equity'), _('crypto')])
     if search_stock:
-        search_result = fetch_symbol_portfolio(search_stock)
+        search_result = fetch_symbol_portfolio(search_stock, instrument)
         
         if search_result is not None:
             # Stock found - show add form
@@ -106,7 +107,7 @@ def add_portfolio():
             shares = st.text_input(_("📈 Enter Number of Shares:"), placeholder=_("e.g. 100"))
             
             if st.button(_("➕ Add to Portfolio"), use_container_width=True):
-                add_to_portfolio(search_stock, shares, avg_price, username)
+                add_to_portfolio(search_stock, instrument, shares, avg_price, username)
                 st.success(_("✅ Successfully Added to Portfolio!"))
                 
         else:

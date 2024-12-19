@@ -274,11 +274,12 @@ def verify_user(username, password):
         st.error(f"Database error: {e}")
         return False, None
 
-def fetch_symbol_portfolio(symbol: str):
+def fetch_symbol_portfolio(symbol: str, instrument: str):
     try:
         symbol = symbol.upper()
+        instrument = instrument.lower()
         collection_obj = initialize_mongo_client()[db_name][processed_collection_name]
-        cursor = collection_obj.find_one({'symbol': symbol}, projection={'symbol': True, '_id': False})
+        cursor = collection_obj.find_one({'symbol': symbol, 'instrument': instrument}, projection={'symbol': True, '_id': False})
         
         if cursor:
             return pd.DataFrame(list(cursor))
