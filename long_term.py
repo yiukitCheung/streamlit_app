@@ -17,6 +17,9 @@ REDIS_HOST = st.secrets['redis']['host']
 REDIS_PORT = st.secrets['redis']['port']
 REDIS_PASSWORD = st.secrets['redis']['password']
 
+# ============================
+# Configuration Section
+# ============================
 def initialize_redis():
     try:
         return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
@@ -147,21 +150,44 @@ def fetch_latest_stock_data(redis_client, symbol):
     except Exception as e:
         st.warning(f"Error fetching latest data for {symbol}: {str(e)}")
         return None
-    
+
+def compute_price_change(latest_price, previous_price):
+    if previous_price is None:
+        return None
+    return ((latest_price - previous_price) / previous_price) * 100
+
+
+# ============================
+# Chart Section
+# ============================
 def candle_chart(filtered_df, latest_data, alert_df):
 
     # Get the structural areas
-    fib_236 = alert_df['fibonacci_retracement'].iloc[-1]['fib_236']
-    fib_382 = alert_df['fibonacci_retracement'].iloc[-1]['fib_382']
-    fib_618 = alert_df['fibonacci_retracement'].iloc[-1]['fib_618']
-    fib_786 = alert_df['fibonacci_retracement'].iloc[-1]['fib_786']
-    fib_1236 = alert_df['fibonacci_retracement'].iloc[-1]['fib_1236']
-    fib_1382 = alert_df['fibonacci_retracement'].iloc[-1]['fib_1382']
     
-    top = alert_df['kernel_density_estimation'].iloc[-1]['top']
-    bottom = alert_df['kernel_density_estimation'].iloc[-1]['bottom']
-    second_top = alert_df['kernel_density_estimation'].iloc[-1]['second_top']
-    second_bottom = alert_df['kernel_density_estimation'].iloc[-1]['second_bottom']
+    # Initialize fibonacci levels in session state if they don't exist
+    fib_levels = ['fib_236', 'fib_382', 'fib_618', 'fib_786', 'fib_1236', 'fib_1382']
+    for level in fib_levels:
+        if level not in st.session_state:
+            st.session_state[level] = alert_df['fibonacci_retracement'].iloc[-1][level]
+    
+    # Initialize kernel density levels in session state if they don't exist
+    kde_levels = ['top', 'bottom', 'second_top', 'second_bottom']
+    for level in kde_levels:
+        if level not in st.session_state:
+            st.session_state[level] = alert_df['kernel_density_estimation'].iloc[-1][level]
+            
+    # Assign values from session state
+    fib_236 = st.session_state.fib_236
+    fib_382 = st.session_state.fib_382  
+    fib_618 = st.session_state.fib_618
+    fib_786 = st.session_state.fib_786
+    fib_1236 = st.session_state.fib_1236
+    fib_1382 = st.session_state.fib_1382
+    
+    top = st.session_state.top
+    bottom = st.session_state.bottom
+    second_top = st.session_state.second_top
+    second_bottom = st.session_state.second_bottom
     
     # If live data exists, append it to the dataframe
     if latest_data and all(v is not None for v in latest_data.values()) and filtered_df['interval'].iloc[-1] == 1:
@@ -208,19 +234,19 @@ def candle_chart(filtered_df, latest_data, alert_df):
         (fib_618, '61.8%', 'rgba(0,0,255,0.2)'),
         (fib_382, '38.2%', 'rgba(255,165,0,0.2)'),
         (fib_236, '23.6%', 'rgba(0,255,0,0.2)'),
-        (fib_1236, '13.6%', 'rgba(0,0,255,0.2)'),
-        (fib_1382, '13.6%', 'rgba(0,0,255,0.2)')
+        (fib_1236, '12.36%', 'rgba(0,0,255,0.2)'),
+        (fib_1382, '13.82%', 'rgba(0,0,255,0.2)')
     ]
 
     if st.session_state.show_fibonacci:
         for level, pct, color in fib_levels:
             fig.add_hline(
-            y=level,
-            line_dash="solid",
-            line_color=color,
-            annotation_text=f'{pct} ({level:.2f})',
-            annotation_font_size=12
-        )
+                y=level,
+                line_dash="solid",
+                line_color=color,
+                annotation_text=f'{pct} ({level:.2f})',
+                annotation_font_size=12
+            )
 
     # Add Dense Trading Range
     trading_ranges = [
@@ -268,9 +294,6 @@ def candle_chart(filtered_df, latest_data, alert_df):
     )
 
     return fig
-
-def fundemental_chart(filtered_df):
-    st.markdown("<h3 style='text-align: center;'>Fundamentals</h3>", unsafe_allow_html=True)
 
 def display_alerts(alert_df):
     # Display Alert
@@ -349,22 +372,66 @@ def display_alerts(alert_df):
                 </div>
                 """, unsafe_allow_html=True)
 
-def static_analysis_page(processed_col, alert_col, redis_client):
-    # Initialize session state variables if not already set
-    if 'show_fibonacci' not in st.session_state:
-        st.session_state.show_fibonacci = False
-    if 'show_trading_areas' not in st.session_state:
-        st.session_state.show_trading_areas = False
-    if 'stock_not_found' not in st.session_state:
-        st.session_state.stock_not_found = False
+def price_change_section(redis_client, stock_selector, processed_col):
+    with st.container():
+        # Fetch processed data
+        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
         
-    # Set the page title and layout
-    st.markdown("<h2 style='text-align: center;'>{}</h2>".format(
-        _("Long Term Alert Dashboard")), 
-        unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
+            _("Daily Price Change")), 
+            unsafe_allow_html=True)
+        # Get latest data
+        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+        
+        # Dynamically compute price change
+        # During trading hours
+        if latest_data:
+            
+            # Get latest price
+            latest_price = latest_data.get('close')
+            previous_price = processed_df.iloc[-1]['close']
+            
+            # Compute price change
+            price_change = compute_price_change(latest_price, previous_price)
+            
+            # Determine color and arrow
+            color = 'green' if price_change > 0 else 'red'
+            arrow = '▲' if price_change > 0 else '▼'
+            
+        # After trading hours
+        elif not latest_data:
+            # Get latest price
+            latest_data = processed_df.iloc[-1]['close']
+            previous_data = processed_df.iloc[-2]['close']
+            
+            # Compute price change
+            price_change = compute_price_change(latest_data, previous_data)
+            
+            # Determine color and arrow
+            color = 'green' if price_change > 0 else 'red'
+            arrow = '▲' if price_change > 0 else '▼'
+            
+        # If no data is available
+        else:
+            price_change = 0
+            color = 'grey'
+            arrow = ''
+        
+        # Refresh button
+        if st.button("Refresh", key="refresh_button"):
+            st.rerun()
     
-    chart_config_container = st.container()
-    with chart_config_container:
+    # Display price change
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <div style="font-size:48px; font-weight:bold; color:{color};">
+                {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+def stock_config_section(alert_col):
+    with st.container():
         # Reduce space around selection components
         st.markdown("""
             <style>
@@ -425,46 +492,72 @@ def static_analysis_page(processed_col, alert_col, redis_client):
             st.session_state.show_structure = False
             st.session_state.show_fibonacci = _("Key Price Points") in selected_options
             st.session_state.show_trading_areas = _("Most Trading Areas") in selected_options
-            
-    chart_container = st.container()
-    with chart_container:
+        
+        return stock_selector, interval_selector
+
+def chart_section(processed_col, alert_col, redis_client, stock_selector, interval_selector):
+    with st.container():
         with st.spinner("{}".format(
             _("Loading data..."))):
             processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, interval_selector)
             latest_data = fetch_latest_stock_data(redis_client, stock_selector)
-        candlesticks_chart = st.container()
-        with candlesticks_chart:
-            # Add auto-refresh functionality
-            st_autorefresh(interval=600000, key="chart")
+
+        with st.spinner("{}".format(
+            _("Loading Alert Data..."))):
+            alert_df = fetch_alert_data(redis_client, alert_col, stock_selector, interval_selector)
             
-            with st.spinner("{}".format(
-                _("Loading data..."))):
-                alert_df = fetch_alert_data(redis_client, alert_col, stock_selector, interval_selector)
-            # Create placeholder for the chart
-            chart_placeholder = st.empty()
-            fig = candle_chart(processed_df, latest_data, alert_df)
-            chart_placeholder.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
+        # Create placeholder for the chart
+        fig = candle_chart(processed_df, latest_data, alert_df)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{time.time()}")
             
+    return alert_df
+
+def Stock_Indepth_Dashboard(processed_col, alert_col, redis_client):
+    # Initialize session state
+    for state in ['show_fibonacci', 'show_trading_areas', 'stock_not_found']:
+        if state not in st.session_state:
+            st.session_state[state] = False
+            
+    st.markdown("<h2 style='text-align: center;'>{}</h2>".format(
+        _("Stock Indepth Dashboard")), 
+        unsafe_allow_html=True)
+    
+    # Stock Config Section
+    stock_selector, interval_selector = stock_config_section(alert_col)
+    
+    chart_col, price_col = st.columns([4, 1])
+    with chart_col:
+        # Chart Section
+        alert_df = chart_section(processed_col, alert_col, redis_client, stock_selector, interval_selector)
+    
+    with price_col:
+        # Price Section
+        price_change_section(redis_client, stock_selector, processed_col)
+        
     # Display the alerts
+    
     display_alerts(alert_df)
 
 def long_term_dashboard():
-    # Set up the gettext translation
+    # Set up translations
     locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
-    lang = 'en'  # Default language
-    # Function to initialize and update translations
-    def set_translation(language):
-        global _
-        translation = gettext.translation(
-            'messages',  # Domain
-            localedir=locale_dir,
-            languages=[language],
-            fallback=True
-        )
-        translation.install()
-        _ = translation.gettext
+    translation = gettext.translation(
+        'messages',
+        localedir=locale_dir, 
+        languages=['en'],
+        fallback=True
+    )
+    translation.install()
+    global _
+    _ = translation.gettext
+
+    # Initialize necessary connections
     redis_client = initialize_redis()
-    # Connect to MongoDB and fetch the processed collection
-    processed_collection = connect_to_mongo()[PROCESSED_COLLECTION_NAME]
-    alert_collection = connect_to_mongo()[ALERT_COLLECTION_NAME]
-    static_analysis_page(processed_collection, alert_collection, redis_client)
+    db = connect_to_mongo()
+    
+    # Display the dashboard
+    Stock_Indepth_Dashboard(
+        db[PROCESSED_COLLECTION_NAME],
+        db[ALERT_COLLECTION_NAME], 
+        redis_client
+    )
