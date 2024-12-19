@@ -421,6 +421,7 @@ def price_section(redis_client, stock_selector, processed_col):
         # Get latest data
         latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
         
+
         # Dynamically compute price change
         # During trading hours
         if latest_data:
@@ -431,23 +432,19 @@ def price_section(redis_client, stock_selector, processed_col):
 
             # Determine color and arrow
             color = 'green' if latest_price > previous_price else 'red'
-            arrow = '▲' if latest_price > previous_price else '▼'
             
         # After trading hours
         elif not latest_data:
             # Get latest price
-            latest_data = processed_df.iloc[-1]['close']
+            latest_price = processed_df.iloc[-1]['close']
             previous_data = processed_df.iloc[-2]['close']
-            
             # Determine color and arrow
-            color = 'green' if latest_data > previous_data else 'red'
-            arrow = '▲' if latest_data > previous_data else '▼'
+            color = 'green' if latest_price > previous_data else 'red'
 
         # If no data is available
         else:
             color = 'grey'
-            arrow = ''
-    
+
         # Display price change
         st.markdown(f"""
             <div style="text-align: center;">

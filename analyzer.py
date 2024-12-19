@@ -21,10 +21,9 @@ class ExpectedReturnRiskAnalyzer:
         self.db_name = db_name
         self.collection_name = collection_name
 
-    def fetch_long_term_alerts(self, symbol, interval=1):
+    def fetch_long_term_alerts(self, symbol, interval):
         """
         Fetch and prepare data for a given stock symbol.
-        
         Parameters:
         symbol (str): The stock symbol to fetch data for.
         
@@ -42,7 +41,7 @@ class ExpectedReturnRiskAnalyzer:
         
         return lst
 
-    def get_all_possible_values(self, symbol='AAPL', interval=1):    
+    def get_all_possible_values(self, symbol, interval):    
         # Fetch alert data for the symbol
         long_term_alerts_dict = self.fetch_long_term_alerts(symbol, interval)
         if len(long_term_alerts_dict) == 0:
@@ -97,7 +96,7 @@ class ExpectedReturnRiskAnalyzer:
         
         return available_point, current_price
 
-    def find_sup_res(self, symbol='AAPL', interval=1):
+    def find_sup_res(self, symbol, interval):
         available_point, close_price = self.get_all_possible_values(symbol, interval)
         if not available_point or not close_price:
             return False, False
@@ -128,6 +127,7 @@ class ExpectedReturnRiskAnalyzer:
             if fib_resistance and 'fibonacci' not in expected_resistance:
                 expected_resistance['fibonacci'] = fib_resistance
 
+        st.write(f'{symbol}:{expected_support},{expected_resistance}')
         return expected_support, expected_resistance
 
     def _check_ema_levels(self, interval_data, close_price):

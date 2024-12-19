@@ -6,6 +6,7 @@ from dependencies import initialize_mongo_client, fetch_symbol_portfolio, add_st
 import psycopg2
 import gettext
 import os
+import redis
 
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
@@ -15,7 +16,14 @@ PROCESSED_COLLECTION = st.secrets['mongo']['processed_collection_name']
 ALERT_COLLECTION = st.secrets['mongo']['alert_collection_name']
 CANDI_COLLECTION = st.secrets['mongo']['candidate_collection_name']
 PORTFOLIO_COLLECTION = st.secrets['mongo']['portfolio_collection_name']
+REDIS_HOST = st.secrets['redis']['host']
+REDIS_PORT = st.secrets['redis']['port']
+REDIS_PASSWORD = st.secrets['redis']['password']
 
+# Redis Configuration
+def initialize_redis_client():
+    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+    return redis_client
 
 def add_to_portfolio(symbol: str, instrument: str, shares: int, avg_price: float, username: str):
     
@@ -109,6 +117,9 @@ def add_portfolio():
             if st.button(_("➕ Add to Portfolio"), use_container_width=True):
                 add_to_portfolio(search_stock, instrument, shares, avg_price, username)
                 st.success(_("✅ Successfully Added to Portfolio!"))
+                cache_key = f"portfolio_metrics_{username}"
+                redis_client = initialize_redis_client()
+                redis_client.delete(cache_key)
                 
         else:
             # Stock not found - show contribute option

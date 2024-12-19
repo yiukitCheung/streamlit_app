@@ -614,6 +614,7 @@ def calculate_expected_value(symbol: str, instrument: str, selected_period: int)
     """Separate function for the actual calculation logic"""
     exp_return_risk_analyzer = ExpectedReturnRiskAnalyzer()
     expected_support, expected_resistance = exp_return_risk_analyzer.find_sup_res(symbol.upper(), selected_period)
+    
     if not expected_support or not expected_resistance:
         return 0, 0, 0
     
@@ -641,11 +642,10 @@ def calculate_expected_value(symbol: str, instrument: str, selected_period: int)
             break
     
     cur_price = fetch_data(instrument, 1).loc[fetch_data(instrument, 1)['symbol'] == symbol.upper()].iloc[-1]['close']
-    st.write(cur_price)
     expected_loss = float(f"{((support - cur_price) / cur_price) * 100:.2f}")
     expected_profit = float(f"{((resistance - cur_price) / cur_price) * 100:.2f}")
     profit_loss_ratio = abs(float(f"{expected_profit / expected_loss:.2f}"))
-
+    
     return expected_loss, expected_profit, profit_loss_ratio
 
 @st.cache_data
@@ -671,6 +671,8 @@ def find_expected_value(symbol: str, instrument:str, selected_period: int):
         try:
             cached_live_result = redis_client.get(live_cached_key)
             if cached_live_result:
+
+
                 values = cached_live_result.split(',')
                 if len(values) == 3:
                     expected_loss, expected_profit, profit_loss_ratio = map(float, values)
@@ -716,6 +718,7 @@ def compute_portfolio_metrics(username: str):
     # Try to get cached results
     cached_result = redis_client.get(cache_key)
     if cached_result:
+        
         metrics = json.loads(cached_result)
         return metrics
 
@@ -733,6 +736,8 @@ def compute_portfolio_metrics(username: str):
     portfolio_df['shares'] = pd.to_numeric(portfolio_df['shares'])
     portfolio_df['avg_price'] = pd.to_numeric(portfolio_df['avg_price'])
     
+    total_possible_downside = 0
+    
     # Process each instrument separately
     for instrument in portfolio_df['instrument'].unique():
         instrument_df = portfolio_df[portfolio_df['instrument'] == instrument]
@@ -745,6 +750,17 @@ def compute_portfolio_metrics(username: str):
         
         # Update only the rows for this instrument
         portfolio_df.loc[symbol_list, 'current_close'] = portfolio_df.loc[symbol_list].index.map(current_prices)
+        
+        # Calculate risk index
+        
+        for symbol in symbol_list:
+            instrument = portfolio_df.loc[symbol, 'instrument']
+            possible_downside = find_expected_value(symbol, instrument, 1)[0]
+            portfolio_df.loc[symbol, 'possible_downside'] = possible_downside
+            
+            total_possible_downside += portfolio_df.loc[symbol, 'shares'] * possible_downside
+            
+    risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
     
     # Convert current_close to numeric after all updates
     portfolio_df['current_close'] = pd.to_numeric(portfolio_df['current_close'])
@@ -754,19 +770,10 @@ def compute_portfolio_metrics(username: str):
     portfolio_df['current_value'] = portfolio_df['shares'] * portfolio_df['current_close'] 
     portfolio_df['return'] = (portfolio_df['current_value'] - portfolio_df['total_cost']) / portfolio_df['total_cost']
     portfolio_df['return'] = portfolio_df['return'].apply(lambda x: round(x, 3))
+    
     overall_return = portfolio_df['return'].mean()
     # Calculate greed index
     greed_index = min(100, round(50 * np.log(1 + 2 * abs(overall_return)) / np.log(3), 2))
-    
-    # Calculate risk index
-    total_possible_downside = 0
-    for symbol in symbol_list:
-        instrument = portfolio_df.loc[symbol, 'instrument']
-        possible_downside = find_expected_value(symbol, instrument, 1)[0]
-        
-        total_possible_downside += portfolio_df.loc[symbol, 'shares'] * possible_downside
-    
-    risk_index = total_possible_downside / portfolio_df['total_cost'].sum()
     
     # Prepare metrics dict
     metrics = {
@@ -784,7 +791,6 @@ def compute_portfolio_metrics(username: str):
 
     # Cache the results for 1 hour (3600 seconds)
     redis_client.setex(cache_key, 3600, json.dumps(metrics))
-
     
     return metrics
 
@@ -1379,7 +1385,6 @@ def ai_section():
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
-
 
 def user_dashboard():
 
