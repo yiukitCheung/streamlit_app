@@ -734,6 +734,7 @@ def compute_portfolio_metrics(username: str):
     # Get current prices
     portfolio_df['shares'] = pd.to_numeric(portfolio_df['shares'])
     portfolio_df['avg_price'] = pd.to_numeric(portfolio_df['avg_price'])
+    portfolio_df['total_cost'] = portfolio_df['shares'] * portfolio_df['avg_price']
     
     total_possible_downside = 0
     
@@ -765,7 +766,6 @@ def compute_portfolio_metrics(username: str):
     portfolio_df['current_close'] = pd.to_numeric(portfolio_df['current_close'])
     
     # Calculate metrics
-    portfolio_df['total_cost'] = portfolio_df['shares'] * portfolio_df['avg_price']
     portfolio_df['current_value'] = portfolio_df['shares'] * portfolio_df['current_close'] 
     portfolio_df['return'] = (portfolio_df['current_value'] - portfolio_df['total_cost']) / portfolio_df['total_cost']
     portfolio_df['return'] = portfolio_df['return'].apply(lambda x: round(x, 3))
