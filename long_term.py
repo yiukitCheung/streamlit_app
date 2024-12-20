@@ -564,18 +564,20 @@ def Stock_Indepth_Dashboard(processed_col, alert_col, redis_client):
     display_alerts(alert_df)
 
 def long_term_dashboard():
-    # Set up translations
+    # Set up the gettext translation
     locale_dir = os.path.join(os.path.dirname(__file__), 'locale')
-    translation = gettext.translation(
-        'messages',
-        localedir=locale_dir, 
-        languages=['en'],
-        fallback=True
-    )
-    translation.install()
-    global _
-    _ = translation.gettext
-
+    lang = 'en'  # Default language
+    # Function to initialize and update translations
+    def set_translation(language):
+        global _
+        translation = gettext.translation(
+            'messages',  # Domain
+            localedir=locale_dir,
+            languages=[language],
+            fallback=True
+        )
+        translation.install()
+        _ = translation.gettext
     # Initialize necessary connections
     redis_client = initialize_redis()
     db = connect_to_mongo()

@@ -328,8 +328,8 @@ msgstr "Cher utilisateur, vous n'avez pas encore de portefeuille, vous pouvez en
 msgid "We will leverage data-driven approach and AI to monitor and analyze your portfolio in Real-Time!!"
 msgstr "Nous utiliserons une approche basée sur les données et l'IA pour surveiller et analyser votre portefeuille en temps réel!!"
 
-msgid "Long Term Alert Dashboard"
-msgstr "Tableau de Bord des Alertes Long Terme"
+msgid "Stock Indepth Dashboard"
+msgstr "Tableau de Bord d'Analyse Approfondie"
 
 msgid "Search Stock"
 msgstr "Rechercher une Action"

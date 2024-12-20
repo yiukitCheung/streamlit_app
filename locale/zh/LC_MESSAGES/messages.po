@@ -473,3 +473,6 @@ msgstr "体验CondVest，无需注册!!"
 
 msgid "CondVest AI Advisor Chat"
 msgstr "CondVest AI 投资顾问"
+
+msgid "Stock Indepth Dashboard"
+msgstr "股票深入分析"

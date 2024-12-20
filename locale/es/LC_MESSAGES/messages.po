@@ -441,3 +441,6 @@ msgstr "¡Experimente CondVest sin una cuenta!!"
 
 msgid "CondVest AI Advisor Chat"
 msgstr "Chat del Asesor AI de Condvest"
+
+msgid "Stock Indepth Dashboard"
+msgstr "Panel de Análisis Profundo de Acciones"
