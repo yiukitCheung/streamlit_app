@@ -50,6 +50,7 @@ def fetch_stock_data(redis_client, collection, stock_symbol, interval):
             data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
         else:
             # Use MongoDB projection and sorting at database level
+            
             cursor = collection.find(
                 {
                     "symbol": stock_symbol,
@@ -194,7 +195,7 @@ def candle_chart(filtered_df, latest_data, alert_df):
         
         # Concatenate with original dataframe
         filtered_df = pd.concat([filtered_df, latest_data])
-        # Calculate date range and price range for last 6 months
+    # Calculate date range and price range for last 6 months
     end_date = filtered_df['date'].max() + pd.DateOffset(days=20)
     start_date = end_date - pd.DateOffset(months=6)
     
@@ -220,12 +221,12 @@ def candle_chart(filtered_df, latest_data, alert_df):
         
     # Add horizontal lines for fibonacci retracement levels
     fib_levels = [
-        (fib_786, '78.6%', 'rgba(255,0,0,0.2)'),
-        (fib_618, '61.8%', 'rgba(0,0,255,0.2)'),
-        (fib_382, '38.2%', 'rgba(255,165,0,0.2)'),
-        (fib_236, '23.6%', 'rgba(0,255,0,0.2)'),
-        (fib_1236, '12.36%', 'rgba(0,0,255,0.2)'),
-        (fib_1382, '13.82%', 'rgba(0,0,255,0.2)')
+        (fib_786, '78.6%', 'rgba(255,0,0,0.3)'),
+        (fib_618, '61.8%', 'rgba(0,0,255,0.3)'),
+        (fib_382, '38.2%', 'rgba(255,165,0,0.3)'),
+        (fib_236, '23.6%', 'rgba(0,255,0,0.3)'),
+        (fib_1236, '12.36%', 'rgba(0,0,255,0.3)'),
+        (fib_1382, '13.82%', 'rgba(0,0,255,0.3)')
     ]
 
     if st.session_state.show_fibonacci:
@@ -239,11 +240,18 @@ def candle_chart(filtered_df, latest_data, alert_df):
             )
 
     # Add Dense Trading Range
+    current_price = filtered_df['close'].iloc[-1]
+    
     trading_ranges = [
-        # Main Trading Area
-        (top, bottom, 'rgba(0,0,255,0.1)', 'rgba(255,0,0,0.1)'),
-        # Second structural area  
-        (second_top, second_bottom, 'rgba(255,165,0,0.1)', 'rgba(255,165,0,0.1)')
+        # Main Trading Area - green if price above top, red if below bottom
+        (top, bottom, 
+        'rgba(0,255,0,0.3)' if current_price > top else 'rgba(255,0,0,0.3)' if current_price < bottom else 'rgba(0,0,255,0.3)',
+        'rgba(0,255,0,0.3)' if current_price > top else 'rgba(255,0,0,0.3)' if current_price < bottom else 'rgba(0,0,255,0.3)'),
+        
+        # Second structural area - green if price above second_top, red if below second_bottom  
+        (second_top, second_bottom,
+        'rgba(0,255,0,0.3)' if current_price > second_top else 'rgba(255,0,0,0.3)' if current_price < second_bottom else 'rgba(255,165,0,0.3)',
+        'rgba(0,255,0,0.3)' if current_price > second_top else 'rgba(255,0,0,0.3)' if current_price < second_bottom else 'rgba(255,165,0,0.3)')
     ]
 
     if st.session_state.show_trading_areas:
@@ -275,12 +283,7 @@ def candle_chart(filtered_df, latest_data, alert_df):
     fig.update_layout(
         xaxis_rangeslider_visible=False, 
         showlegend=False, 
-        margin=dict(t=30, b=10, l=10, r=10),
-        title=dict(
-            text=filtered_df['symbol'].iloc[0],
-            x=0.5,
-            y=0.95
-        )
+        margin=dict(t=30, b=10, l=10, r=10)
     )
 
     return fig
@@ -289,7 +292,7 @@ def display_alerts(alert_df):
     # Display Alert
     today_alert = alert_df[alert_df['date'] == alert_df['date'].max()]
     # Create columns for the three alert types
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     # Function to map alert values to color and message
     def get_alert_color_and_message(alert_type, value):
@@ -362,99 +365,114 @@ def display_alerts(alert_df):
                 </div>
                 """, unsafe_allow_html=True)
 
+    # with col4:
+    #     st.markdown("<h3 style='text-align: center;'>{}</h3>".format(
+    #         _("Add More")), 
+    #         unsafe_allow_html=True)
+        
 def price_change_section(redis_client, stock_selector, processed_col):
-    with st.container():
-        # Fetch processed data
-        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
-        
-        # Get latest data
-        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
-        
-        # Dynamically compute price change
-        # During trading hours
-        if latest_data:
-            
-            # Get latest price
-            latest_price = latest_data.get('close')
-            previous_price = processed_df.iloc[-1]['close']
-            
-            # Compute price change
-            price_change = compute_price_change(latest_price, previous_price)
-            
-            # Determine color and arrow
-            color = 'green' if price_change > 0 else 'red'
-            arrow = '▲' if price_change > 0 else '▼'
-            
-        # After trading hours
-        elif not latest_data:
-            # Get latest price
-            latest_data = processed_df.iloc[-1]['close']
-            previous_data = processed_df.iloc[-2]['close']
-            
-            # Compute price change
-            price_change = compute_price_change(latest_data, previous_data)
-            
-            # Determine color and arrow
-            color = 'green' if price_change > 0 else 'red'
-            arrow = '▲' if price_change > 0 else '▼'
-            
-        # If no data is available
-        else:
-            price_change = 0
-            color = 'grey'
-            arrow = ''
+
+    # Fetch processed data
+    processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
     
-        # Display price change
-        st.markdown(f"""
-            <div style="text-align: center;">
-                <div style="font-size:48px; font-weight:bold; color:{color};">
-                    {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
-                </div>
+    # Get latest data
+    latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+    
+    # Dynamically compute price change
+    # During trading hours
+    if latest_data:
+        
+        # Get latest price
+        latest_price = latest_data.get('close')
+        previous_price = processed_df.iloc[-1]['close']
+        
+        # Compute price change
+        price_change = compute_price_change(latest_price, previous_price)
+        
+        # Determine color and arrow
+        color = 'green' if price_change > 0 else 'red'
+        arrow = '▲' if price_change > 0 else '▼'
+        
+    # After trading hours
+    elif not latest_data:
+        # Get latest price
+        latest_data = processed_df.iloc[-1]['close']
+        previous_data = processed_df.iloc[-2]['close']
+        
+        # Compute price change
+        price_change = compute_price_change(latest_data, previous_data)
+        
+        # Determine color and arrow
+        color = 'green' if price_change > 0 else 'red'
+        arrow = '▲' if price_change > 0 else '▼'
+        
+    # If no data is available
+    else:
+        price_change = 0
+        color = 'grey'
+        arrow = ''
+
+    # Display price change
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <div style="font-size:48px; font-weight:bold; color:{color};">
+                {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
             </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
 
 def price_section(redis_client, stock_selector, processed_col):
-    with st.container():
-        # Fetch processed data
-        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
+
+    # Fetch processed data
+    processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
+    
+    # Get latest data
+    latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+    
+
+    # Dynamically compute price change
+    # During trading hours
+    if latest_data:
         
-        # Get latest data
-        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+        # Get latest price
+        latest_price = latest_data.get('close')
+        previous_price = processed_df.iloc[-1]['close']
+
+        # Determine color and arrow
+        color = 'green' if latest_price > previous_price else 'red'
         
+    # After trading hours
+    elif not latest_data:
+        # Get latest price
+        latest_price = processed_df.iloc[-1]['close']
+        previous_data = processed_df.iloc[-2]['close']
+        # Determine color and arrow
+        color = 'green' if latest_price > previous_data else 'red'
 
-        # Dynamically compute price change
-        # During trading hours
-        if latest_data:
-            
-            # Get latest price
-            latest_price = latest_data.get('close')
-            previous_price = processed_df.iloc[-1]['close']
+    # If no data is available
+    else:
+        color = 'grey'
 
-            # Determine color and arrow
-            color = 'green' if latest_price > previous_price else 'red'
-            
-        # After trading hours
-        elif not latest_data:
-            # Get latest price
-            latest_price = processed_df.iloc[-1]['close']
-            previous_data = processed_df.iloc[-2]['close']
-            # Determine color and arrow
-            color = 'green' if latest_price > previous_data else 'red'
-
-        # If no data is available
-        else:
-            color = 'grey'
-
-        # Display price change
-        st.markdown(f"""
-            <div style="text-align: center;">
-                <div style="font-size:48px; font-weight:bold; color:{color};">
-                    Price: {latest_price:.2f}
-                </div>
+    # Display price change
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <div style="font-size:48px; font-weight:bold; color:{color};">
+                Price: {latest_price:.2f}
             </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
+
+def symbol_section(stock_selector):
+    st.markdown(f"""
+        <div style="text-align: center;">
+            <div style="font-size:48px; font-weight:bold; color:black;">
+                {stock_selector}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 def stock_config_section(alert_col):
+    
     with st.container():
         # Reduce space around selection components
         st.markdown("""
@@ -466,26 +484,14 @@ def stock_config_section(alert_col):
         symbol_col, interval_col, show_structure_col = st.columns(3)
         with symbol_col:
             # Create a dropdown to select the stock
-            stock_to_search = st.text_input("{}".format(
-                _("Search Stock")), value="")
-            if stock_to_search:
-                try:
-                    stock_selector = search_stock(stock_to_search)[0]
-                except:
-                    st.session_state.stock_not_found = True
-                    st.warning("Sorry, Stock is not in database, would you like to add it?")
-                    if st.button("Add Stock"):
-                        if check_symbol_yahoo(stock_to_search.upper()):
-                            stock_to_search = stock_to_search.upper()
-                            full_name = yf.Ticker(stock_to_search).info.get('longName')
-                            add_stock_to_database(stock_to_search, full_name)
-                            st.success("🎉 Thanks for your contribution! Your stock will be added to the database tomorrow.")
-                            st.balloons()
-                        else:
-                            st.warning("Sorry, this stock is not available on Market")
-                    stock_selector = 'AAPL'
-            else:
-                stock_selector = 'AAPL'
+            # Get list of stocks from alert collection
+            options = sorted(alert_col.find({'instrument': 'equity'}).distinct("symbol"))
+            
+            # Create select box for stock selection
+            stock_selector = st.selectbox("{}".format(
+                _("Search Stock")), 
+                options=options,
+                index=options.index('AAPL') if 'AAPL' in options else 0)
 
         with interval_col:
             # Create a dropdown to select the interval
@@ -511,7 +517,7 @@ def stock_config_section(alert_col):
             }
             # Display the options with default values
             selected_options = st.multiselect("{}".format(
-                _("Key Price Areas")), options=list(option_mapping.values()), default=list(option_mapping.values()))
+                _("Key Price Areas")), options=list(option_mapping.values()))
             # Set defaults
             st.session_state.show_structure = False
             st.session_state.show_fibonacci = _("Key Price Points") in selected_options
@@ -546,20 +552,18 @@ def Stock_Indepth_Dashboard(processed_col, alert_col, redis_client):
         unsafe_allow_html=True)
     
     # Stock Config Section
-    stock_selector, interval_selector = stock_config_section(alert_col)
-    
-    chart_col, price_col = st.columns([4, 1])
-    with chart_col:
-        # Chart Section
-        alert_df = chart_section(processed_col, alert_col, redis_client, stock_selector, interval_selector)
-    
-    with price_col:
-        # Price Section
+    stock_selector, interval_selector = stock_config_section(alert_col) 
+    # Price Section
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col1:
+        symbol_section(stock_selector)
+    with col2:
         price_section(redis_client, stock_selector, processed_col)
-        
-        # Price Change Section
+    with col3:
         price_change_section(redis_client, stock_selector, processed_col)
         
+    # Chart Section
+    alert_df = chart_section(processed_col, alert_col, redis_client, stock_selector, interval_selector)    
     # Display the alerts
     display_alerts(alert_df)
 

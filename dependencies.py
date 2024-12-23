@@ -7,6 +7,9 @@ from twilio.rest import Client
 import yfinance as yf
 from openai import OpenAI
 from polygon import RESTClient
+import time
+import io
+import redis
 
 # ChatGPT
 chatgpt_client = OpenAI(api_key=st.secrets["chatgpt"]["api_key"])
@@ -409,3 +412,221 @@ def check_crypto_exists(symbol: str) -> tuple:
     except Exception as e:
         # Handle the case when symbol is not found
         return None, None
+    
+def fetch_stock_data(redis_client, collection, stock_symbol, interval):
+    start_time = time.time()
+    warehouse_interval = st.secrets['mongo']['warehouse_interval']
+    if not warehouse_interval:
+        raise ValueError("warehouse_interval is empty in st.secrets")
+
+    # Define Redis key based on stock symbol and interval
+    redis_key = f"stock_data:{stock_symbol}:{interval}"
+
+    try:
+        # Check if data is cached in Redis and deserialize in one step
+        if cached_data := redis_client.get(redis_key):
+            data = pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+        else:
+            # Use MongoDB projection and sorting at database level
+            cursor = collection.find(
+                {
+                    "symbol": stock_symbol,
+                    "interval": interval, 
+                    "instrument": "equity",
+                    "date": {"$gte": pd.Timestamp.now() - pd.Timedelta(days=1825)}
+                },
+                {"_id": 0}
+            ).sort("date", 1)
+            
+            # Create DataFrame directly from cursor
+            data = pd.DataFrame(cursor)
+            
+            # Cache the result with compression
+            redis_client.setex(
+                redis_key,
+                300,
+                data.to_json(orient="records", date_format='iso')
+            )
+
+        if st.session_state.get('debug'):
+            end_time = time.time()
+            st.write(f"Time taken to fetch data: {end_time - start_time:.2f} seconds")
+            
+        return data
+
+    except Exception as e:
+        st.error(f"Error fetching data: {str(e)}")
+        return pd.DataFrame()  # Return empty DataFrame on error
+
+
+def fetch_alert_data(redis_client, collection, stock_symbol, interval):
+    redis_key = f"alert_data:{stock_symbol}:{interval}"
+    
+    # Try to get cached data from Redis
+    try:
+        cached_data = redis_client.get(redis_key)
+        
+        if cached_data:
+            
+            return pd.read_json(io.StringIO(cached_data.decode("utf-8")))
+    except Exception as e:
+        st.warning(f"Redis error: {str(e)}")
+    
+    
+    # Fetch and process MongoDB data using aggregation pipeline
+    pipeline = [
+        {"$match": {"symbol": stock_symbol, "interval": interval, "instrument": "equity"}},
+        {"$project": {
+            "_id": 0,
+            "date": 1,
+            "symbol": 1,
+            "interval": 1,
+            "instrument": 1,
+            "open": 1, 
+            "high": 1,
+            "low": 1,
+            "close": 1,
+            "volume": 1,
+            "momentum_alert": {"$ifNull": [{"$getField": {"field": "alert_type", "input": {"$getField": {"field": "momentum_alert", "input": "$alerts"}}}}, None]},
+            "velocity_alert": {"$ifNull": [{"$getField": {"field": "alert_type", "input": {"$getField": {"field": "velocity_alert", "input": "$alerts"}}}}, None]},
+            "touch_type": {
+                "$cond": {
+                    "if": {"$ifNull": [{"$getField": {"field": "169ema_touched", "input": "$alerts"}}, False]},
+                    "then": {"$getField": {"field": "type", "input": {"$getField": {"field": "169ema_touched", "input": "$alerts"}}}},
+                    "else": {
+                        "$cond": {
+                            "if": {"$ifNull": [{"$getField": {"field": "13ema_touched", "input": "$alerts"}}, False]},
+                            "then": {"$getField": {"field": "type", "input": {"$getField": {"field": "13ema_touched", "input": "$alerts"}}}},
+                            "else": None
+                        }
+                    }
+                }
+            },
+            "fibonacci_retracement": {"$ifNull": [{"$getField": {"field": "fibonacci_retracement", "input": "$structural_area"}}, None]},
+            "kernel_density_estimation": {"$ifNull": [{"$getField": {"field": "kernel_density_estimation", "input": "$structural_area"}}, None]}
+        }}
+    ]
+    
+    data = list(collection.aggregate(pipeline))
+    df = pd.DataFrame(data).sort_values(by=['date'])
+    
+    # Cache in Redis
+    try:
+        redis_client.setex(redis_key, 120, df.to_json(orient="records"))
+    except Exception as e:
+        st.warning(f"Redis caching error: {str(e)}")
+            
+    return df
+
+def fetch_latest_stock_data(redis_client, symbol):
+    """
+    Fetches the latest stock data from Redis cache for a given symbol.
+    """
+    try:
+        realtime_key = f"live_trade:{symbol}"
+        cached_data = redis_client.hgetall(realtime_key)
+        if cached_data:
+            decoded_data = {key.decode(): float(value.decode()) for key, value in cached_data.items()}
+            return decoded_data
+        return None
+    except Exception as e:
+        st.warning(f"Error fetching latest data for {symbol}: {str(e)}")
+        return None
+
+def compute_price_change(latest_price, previous_price):
+    if previous_price is None:
+        return None
+    return ((latest_price - previous_price) / previous_price) * 100
+
+
+def price_change_section(redis_client, stock_selector, processed_col):
+    with st.container():
+        # Fetch processed data
+        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
+        
+        # Get latest data
+        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+        
+        # Dynamically compute price change
+        # During trading hours
+        if latest_data:
+            
+            # Get latest price
+            latest_price = latest_data.get('close')
+            previous_price = processed_df.iloc[-1]['close']
+            
+            # Compute price change
+            price_change = compute_price_change(latest_price, previous_price)
+            
+            # Determine color and arrow
+            color = 'green' if price_change > 0 else 'red'
+            arrow = '▲' if price_change > 0 else '▼'
+            
+        # After trading hours
+        elif not latest_data:
+            # Get latest price
+            latest_data = processed_df.iloc[-1]['close']
+            previous_data = processed_df.iloc[-2]['close']
+            
+            # Compute price change
+            price_change = compute_price_change(latest_data, previous_data)
+            
+            # Determine color and arrow
+            color = 'green' if price_change > 0 else 'red'
+            arrow = '▲' if price_change > 0 else '▼'
+            
+        # If no data is available
+        else:
+            price_change = 0
+            color = 'grey'
+            arrow = ''
+    
+        # Display price change
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <div style="font-size:48px; font-weight:bold; color:{color};">
+                    {arrow} {'+' if price_change > 0 else ''}{price_change:.2f}%
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+def price_section(redis_client, stock_selector, processed_col):
+    with st.container():
+        # Fetch processed data
+        processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
+        
+        # Get latest data
+        latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+        
+
+        # Dynamically compute price change
+        # During trading hours
+        if latest_data:
+            
+            # Get latest price
+            latest_price = latest_data.get('close')
+            previous_price = processed_df.iloc[-1]['close']
+
+            # Determine color and arrow
+            color = 'green' if latest_price > previous_price else 'red'
+            
+        # After trading hours
+        elif not latest_data:
+            # Get latest price
+            latest_price = processed_df.iloc[-1]['close']
+            previous_data = processed_df.iloc[-2]['close']
+            # Determine color and arrow
+            color = 'green' if latest_price > previous_data else 'red'
+
+        # If no data is available
+        else:
+            color = 'grey'
+
+        # Display price change
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <div style="font-size:48px; font-weight:bold; color:{color};">
+                    Price: {latest_price:.2f}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
