@@ -1001,20 +1001,7 @@ def stock_pick_section(cur_alert_dict):
                 {}
             </div>
         """.format(_("CondVest Pick 💰")), unsafe_allow_html=True)
-
-        term_mapping = {
-            "Short Term": _("Short Term"),
-            "Mid Term": _("Mid Term"),
-            "Long Term": _("Long Term")
-        }
-
-        # Add term selection dropdown
-        selected_term = st.selectbox(
-            _("Select Trading Term"),
-            options=list(term_mapping.values()),
-            key="term_selector"
-        )
-
+        
         # Display alert section with title and results
         def display_alert_section(title, results, badge_color):
             # Add tooltip css 
@@ -1069,20 +1056,9 @@ def stock_pick_section(cur_alert_dict):
                     st.markdown(f'<div class="{badge_class}">{symbol}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-        # Display alerts based on selected term
-        if selected_term == "Short Term":
-            acc_alert = 'acclerating'
-            main_alert = 'main_accumulating'
-        elif selected_term == "Mid Term":
-            acc_alert = 'long_accumulating'
-            main_alert = 'long_main_accumulating'
-        else:
-            acc_alert = 'ext_long_accelerating'
-            main_alert = 'ext_accumulating'
-
         acc_alert_col, main_alert_col = st.columns(2)
-        acc_alert_symbols = find_alert_symbols(cur_alert_dict, acc_alert)
-        main_alert_symbols = find_alert_symbols(cur_alert_dict, main_alert)
+        acc_alert_symbols = find_alert_symbols(cur_alert_dict, 'ext_long_accelerating')
+        main_alert_symbols = find_alert_symbols(cur_alert_dict, 'ext_accumulating')
         with acc_alert_col:
             display_alert_section(_("💰 Buy!"), acc_alert_symbols, "#4CAF50")
         with main_alert_col:
