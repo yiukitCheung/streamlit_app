@@ -472,7 +472,6 @@ def fetch_alert_data(redis_client, collection, stock_symbol, interval):
     except Exception as e:
         st.warning(f"Redis error: {str(e)}")
     
-    
     # Fetch and process MongoDB data using aggregation pipeline
     pipeline = [
         {"$match": {"symbol": stock_symbol, "interval": interval, "instrument": "equity"}},

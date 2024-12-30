@@ -129,14 +129,13 @@ def fetch_latest_stock_data(redis_client, symbol):
     
 def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_alert_df):
     # Extract the interval in minutes for gap filling
-    
     interval_in_minutes = int(filtered_df['interval'].iloc[0].replace('m',''))\
                             if filtered_df['interval'].iloc[0].endswith('m')\
                                 else int(filtered_df['interval'].iloc[0].replace('h','')) * 60
     
     # Create figure for candlestick chart
     fig = go.Figure()
-    # Add candlestick chartc
+    # Add candlestick chart
     fig.add_trace(go.Candlestick(x=filtered_df['datetime'],
                                 open=filtered_df['open'],
                                 high=filtered_df['high'],
@@ -148,83 +147,48 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
     
     # Add support and resistance areas to the candlestick chart
     if len(support_resistance_alert_df) > 0:
-        # Add support areas
-        prev_support_upper = None
-        prev_support_lower = None
-        start_date = None
+        # Get the latest support and resistance values
+        latest_sr = support_resistance_alert_df.sort_values('datetime').iloc[-1]
         
-        # Plot the support areas
-        for _, row in support_resistance_alert_df.sort_values('datetime').iterrows():
-            if pd.isna(row.get('support_upper')) or pd.isna(row.get('support_lower')):
-                if prev_support_upper is not None and prev_support_lower is not None:
-                    # Handle NaT values by checking if datetime is valid
-                    if pd.notna(row['datetime']):
-                        end_date = row['datetime']
-                        fig.add_trace(go.Scatter(
-                            x=[start_date, end_date],
-                            y=[prev_support_upper, prev_support_upper],
-                            fill=None,
-                            mode='lines',
-                            line=dict(color='rgba(0,0,255,0.3)', width=0),
-                            showlegend=False
-                        ))
-                        fig.add_trace(go.Scatter(
-                            x=[start_date, end_date],
-                            y=[prev_support_lower, prev_support_lower],
-                            fill='tonexty',
-                            mode='lines',
-                            line=dict(color='rgba(0,0,255,0.3)', width=0),
-                            fillcolor='rgba(0,0,255,0.3)',
-                            showlegend=False
-                        ))
-                    prev_support_upper = None
-                    prev_support_lower = None
-            else:
-                if prev_support_upper is None or prev_support_lower is None:
-                    # Handle NaT values by checking if datetime is valid
-                    if pd.notna(row['datetime']):
-                        start_date = row['datetime']
-                        prev_support_upper = row['support_upper']
-                        prev_support_lower = row['support_lower']
+        # Plot latest support area if exists
+        if not pd.isna(latest_sr.get('support_upper')) and not pd.isna(latest_sr.get('support_lower')):
+            fig.add_trace(go.Scatter(
+                x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
+                y=[latest_sr['support_upper'], latest_sr['support_upper']],
+                fill=None,
+                mode='lines',
+                line=dict(color='rgba(0,0,255,0.3)', width=0),
+                showlegend=False
+            ))
+            fig.add_trace(go.Scatter(
+                x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
+                y=[latest_sr['support_lower'], latest_sr['support_lower']],
+                fill='tonexty',
+                mode='lines',
+                line=dict(color='rgba(0,0,255,0.3)', width=0),
+                fillcolor='rgba(0,0,255,0.3)',
+                showlegend=False
+            ))
 
-        # Add resistance areas
-        prev_resistance_upper = None
-        prev_resistance_lower = None
-        start_date = None
-        
-        # Plot the resistance areas
-        for _, row in support_resistance_alert_df.sort_values('datetime').iterrows():
-            if pd.isna(row.get('resistance_upper')) or pd.isna(row.get('resistance_lower')):
-                if prev_resistance_upper is not None and prev_resistance_lower is not None:
-                    # Handle NaT values by checking if datetime is valid
-                    if pd.notna(row['datetime']):
-                        end_date = row['datetime']
-                        fig.add_trace(go.Scatter(
-                            x=[start_date, end_date],
-                            y=[prev_resistance_upper, prev_resistance_upper],
-                            fill=None,
-                            mode='lines',
-                            line=dict(color='rgba(255,0,0,0.3)', width=0),
-                            showlegend=False
-                        ))
-                        fig.add_trace(go.Scatter(
-                            x=[start_date, end_date],
-                            y=[prev_resistance_lower, prev_resistance_lower],
-                            fill='tonexty',
-                            mode='lines',
-                            line=dict(color='rgba(255,0,0,0.3)', width=0),
-                            fillcolor='rgba(255,0,0,0.3)',
-                            showlegend=False
-                        ))
-                    prev_resistance_upper = None
-                    prev_resistance_lower = None
-            else:
-                if prev_resistance_upper is None or prev_resistance_lower is None:
-                    # Handle NaT values by checking if datetime is valid
-                    if pd.notna(row['datetime']):
-                        start_date = row['datetime']
-                        prev_resistance_upper = row['resistance_upper']
-                        prev_resistance_lower = row['resistance_lower']
+        # Plot latest resistance area if exists
+        if not pd.isna(latest_sr.get('resistance_upper')) and not pd.isna(latest_sr.get('resistance_lower')):
+            fig.add_trace(go.Scatter(
+                x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
+                y=[latest_sr['resistance_upper'], latest_sr['resistance_upper']],
+                fill=None,
+                mode='lines',
+                line=dict(color='rgba(255,0,0,0.3)', width=0),
+                showlegend=False
+            ))
+            fig.add_trace(go.Scatter(
+                x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
+                y=[latest_sr['resistance_lower'], latest_sr['resistance_lower']],
+                fill='tonexty',
+                mode='lines',
+                line=dict(color='rgba(255,0,0,0.3)', width=0),
+                fillcolor='rgba(255,0,0,0.3)',
+                showlegend=False
+            ))
                         
         # Plot the volume spike
         for _, row in vol_spike_alert_df.iterrows():
