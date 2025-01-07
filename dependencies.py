@@ -247,23 +247,24 @@ def insert_user_data(username, password, phone_number):
         return False
 
 def send_welcome_msg(twilio_client, number, target_number, username, password):
-    body = f"""Welcome to CondVest! 🎉
+    body = f"""
+    Welcome to CondVest! 🎉
 
-            Thank you for joining our community! We are passionately dedicated to ensuring your success in the financial markets. Our expert team works tirelessly to provide you with precise, timely buy/sell alerts and in-depth professional market analysis that will empower your investment decisions. We've designed our platform to be fully customizable - visit the settings page anytime to fine-tune your alert preferences and create a personalized trading experience that perfectly matches your unique investment style and goals. Your success is our mission, and we're here to support you every step of the way.
+    Thank you for joining our community! We are passionately dedicated to ensuring your success in the financial markets. Our expert team works tirelessly to provide you with precise, timely buy/sell alerts and in-depth professional market analysis that will empower your investment decisions. We've designed our platform to be fully customizable - visit the settings page anytime to fine-tune your alert preferences and create a personalized trading experience that perfectly matches your unique investment style and goals. Your success is our mission, and we're here to support you every step of the way.
 
-            Learn more about us:
-            🌐 Website: https://condvest.streamlit.app
-            💼 LinkedIn: https://ca.linkedin.com/company/condvest-inc?trk=public_post-text
+    Learn more about us:
+    🌐 Website: https://condvest.streamlit.app
+    💼 LinkedIn: https://ca.linkedin.com/company/condvest-inc?trk=public_post-text
 
-            Our team of financial experts and data scientists are here to support your investment journey.
+    Our team of financial experts and data scientists are here to support your investment journey.
 
-            Best regards,
-            The CondVest Team
-            
-            Your Login Credentials:
-            Username: {username}
-            Password: {password}
-            """
+    Best regards,
+    The CondVest Team
+    
+    Your Login Credentials:
+    Username: {username}
+    Password: {password}
+    """
 
     try:
         twilio_client.messages.create(
