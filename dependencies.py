@@ -127,7 +127,7 @@ def sign_up_process():
             hashed_pw = hash_password(password)
             if insert_user_data(username, hashed_pw, phone_number):
                 st.success(f"Account created successfully for {username}!")
-                send_welcome_msg(client, twil_phone_number, phone_number)
+                send_welcome_msg(client, twil_phone_number, phone_number, username, password)
                 st.balloons()
 
                 # Redirect to login page after successful signup
@@ -246,17 +246,34 @@ def insert_user_data(username, password, phone_number):
         st.error(f"Error inserting user data: {e}")
         return False
 
-def send_welcome_msg(twilio_client, number, target_number):
-    body = 'Hi! Welcome to CondVest. The only financial market assistant that help you invest...'
+def send_welcome_msg(twilio_client, number, target_number, username, password):
+    body = f"""Welcome to CondVest! 🎉
+
+            Thank you for joining our community! We are passionately dedicated to ensuring your success in the financial markets. Our expert team works tirelessly to provide you with precise, timely buy/sell alerts and in-depth professional market analysis that will empower your investment decisions. We've designed our platform to be fully customizable - visit the settings page anytime to fine-tune your alert preferences and create a personalized trading experience that perfectly matches your unique investment style and goals. Your success is our mission, and we're here to support you every step of the way.
+
+            Learn more about us:
+            🌐 Website: https://condvest.streamlit.app
+            💼 LinkedIn: https://ca.linkedin.com/company/condvest-inc?trk=public_post-text
+
+            Our team of financial experts and data scientists are here to support your investment journey.
+
+            Best regards,
+            The CondVest Team
+            
+            Your Login Credentials:
+            Username: {username}
+            Password: {password}
+            """
+
     try:
         twilio_client.messages.create(
             body=body,
             from_=number,
             to=target_number
         )
-        st.info(f"A welcoming message has been sent to the registered phone number")
+        st.info("Welcome message sent successfully!")
     except Exception as e:
-        st.error(f"Failed to send message: {e}")
+        st.error(f"Failed to send welcome message: {e}")
 
 def verify_user(username, password):
     try:
