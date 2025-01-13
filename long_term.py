@@ -292,7 +292,7 @@ def display_alerts(alert_df):
     # Display Alert
     today_alert = alert_df[alert_df['date'] == alert_df['date'].max()]
     # Create columns for the three alert types
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     # Function to map alert values to color and message
     def get_alert_color_and_message(alert_type, value):
@@ -546,10 +546,6 @@ def Stock_Indepth_Dashboard(processed_col, alert_col, redis_client):
     for state in ['show_fibonacci', 'show_trading_areas', 'stock_not_found']:
         if state not in st.session_state:
             st.session_state[state] = False
-            
-    st.markdown("<h2 style='text-align: center;'>{}</h2>".format(
-        _("Stock Indepth Dashboard")), 
-        unsafe_allow_html=True)
     
     # Stock Config Section
     stock_selector, interval_selector = stock_config_section(alert_col) 

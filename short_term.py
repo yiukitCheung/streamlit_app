@@ -379,13 +379,10 @@ def options_section(db):
     with st.container():
         # Get the list of stocks
         options = sorted(db[STREAMING_COLLECTIONS[0]].find({'instrument':'equity'}).distinct("symbol"))
-        intervals = DESIRED_STREAMING_INTERVAL
-        # Streamlit UI
-        st.markdown("<h2 style='text-align: center;'>{}</h2>".format(_("Short Term Alerts Dashboard")), unsafe_allow_html=True)
-        
+        intervals = DESIRED_STREAMING_INTERVAL        
         col1, col2 = st.columns([1, 1])
         with col1:
-            stock_selector = st.selectbox(_("Select Stock"), options=options, index=len(options) - 1, key="short_term_stock")
+            stock_selector = st.selectbox(_("Select Stock"), options=options, index=options.index('AAPL') if 'AAPL' in options else 0, key="short_term_stock")
         with col2:
             intervals_selector = st.selectbox(_("Select Interval"), options=intervals, index=intervals.index('30m'), key="short_term_interval")
     
