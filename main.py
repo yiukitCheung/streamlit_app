@@ -13,6 +13,7 @@ from long_term import long_term_dashboard
 from short_term import short_term_dashboard
 from settings_page import settings_page
 import gettext, os, time
+from utils import StrategyEDA
 
 # OpenAI Configuration
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
@@ -42,10 +43,14 @@ def initialize_redis():
 
 # Fetch Sandbox testing results
 def fetch_sandbox_records():
-    client = MongoClient(URL)
-    db = client[DB_NAME]
-    records = list(db[SANDBOX_COLLECTION].find({}, {'_id':0}, sort=[('entry_date', 1)]))
-    return records
+    try:    
+        client = MongoClient(URL)
+        db = client[DB_NAME]
+        records = list(db[SANDBOX_COLLECTION].find({}, {'_id':0}, sort=[('entry_date', 1)]))
+        return records
+    except Exception as e:
+        st.error(f"Error fetching sandbox records: {e}")
+        return []
 
 # Initialize session state
 if 'current_page' not in st.session_state:
@@ -192,7 +197,7 @@ def main():
                 f"🚀 {item['symbol']}: Entry {item['Entry_date'].strftime('%Y-%m-%d')} | Exit {item['Exit_date'].strftime('%Y-%m-%d')} | "
                 f"Profit/Loss: {float(item['profit/loss'].split('%')[0]):.2f}%"
                 f"</span>"
-                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss'].split('%')[0]) > 0)
+                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss'].split('%')[0]) > 10) and (item['instrument'] == 'equity')
             )
             # Display scrolling marquee in Streamlit
             st.markdown(
@@ -335,7 +340,20 @@ def main():
                             _("By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
                             _("Our Vision")),
                 unsafe_allow_html=True)
-                
+            
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            
+            # Display Marketing Backtest Results
+            st.markdown(_("""
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; text-align: center;">
+                    <h2 style="color: #2E8B57;">{}</h2>
+                </div>
+            """).format(_("CondVest Empowers You to Win the Market !!!")), unsafe_allow_html=True)
+            # Get the start and end date of the backtest results
+            start_date = sand_box_results[0]['Entry_date']
+            end_date = sand_box_results[-1]['Exit_date']
+            st.plotly_chart(StrategyEDA(start_date, end_date, instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)
+            
         elif st.session_state['current_page'] == "Forgot Password":
             forgot_password()
         elif st.session_state['current_page'] == "Sign Up":
