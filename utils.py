@@ -75,7 +75,7 @@ class StrategyEDA:
                     y=results_df_sorted['total_asset'],
                     name='Strategy',
                     showlegend=False,
-                    line=dict(color='#2E8B57', width=2)),
+                    line=dict(color='#2E8B57', width=3)),
             row=1, col=1
         )
 
@@ -91,7 +91,7 @@ class StrategyEDA:
                     text=f"<b>{trade['symbol']}</b>",
                     textposition='top left',
                     showlegend=False,
-                    textfont=dict(size=25, color='rgba(46, 139, 87, 0.5)')
+                    textfont=dict(size=25, color='rgba(46, 139, 87, 0.7)')
                 ),
                 row=1, col=1
             )
@@ -120,11 +120,7 @@ class StrategyEDA:
                     f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
                 showarrow=False,
                 align="left",
-                font=dict(size=24),
-                bgcolor="rgba(255, 255, 255, 0.9)",
-                bordercolor="rgba(46, 139, 87, 0.5)",
-                borderwidth=2,
-                borderpad=10
+                font=dict(size=18)
             )
         elif self.instrument == 'equity':
             nasdaq_return = ((nasdaq_data['total_asset'].iloc[-1] / nasdaq_data['total_asset'].iloc[0]) - 1) * 100
@@ -149,36 +145,48 @@ class StrategyEDA:
                     f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
                 showarrow=False,
                 align="left",
-                font=dict(size=24),
-                bgcolor="rgba(255, 255, 255, 0.9)", 
-                bordercolor="rgba(46, 139, 87, 0.5)",
-                borderwidth=2,
-                borderpad=10
+                font=dict(size=18)
+                
             )
 
         # Update layout with log y-axis and prominent axes
         fig.update_layout(
-            height=800,
-            width=1200,
+            height=650,
             showlegend=False,
+            title=dict(
+                text="CondVest Empowers You to Win the Market !!!",
+                x=0.5,
+                y=0.95,
+                xanchor='center',
+                yanchor='top',
+                font=dict(size=24, color='#2E8B57')
+            ),
             xaxis=dict(
                 range=[pd.to_datetime(self.start_date), pd.to_datetime(self.end_date)],
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128, 128, 128, 0.2)',
-                mirror=False
+                showgrid=False,
+                mirror=False,
+                tickfont=dict(size=16, color='black', family='Arial Bold')  # Made tick values more prominent
             ),
             yaxis=dict(
                 type='log',
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(128, 128, 128, 0.2)',
-                mirror=False
+                showgrid=False,
+                mirror=False,
+                tickfont=dict(size=16, color='#2E8B57', family='Arial Bold')  # Made tick values more prominent
             )
         )
         
-        # Update axes labels with more prominent text
-        fig.update_xaxes(title_text="Date", title_font=dict(size=14, color='black'), row=1, col=1)
-        fig.update_yaxes(title_text="Total Amount ($)", title_font=dict(size=14, color='black'), row=1, col=1)
+        # Update axes labels to match overall style
+        fig.update_xaxes(
+            title_text="Date", 
+            title_font=dict(size=14, color='#2E8B57', family='Arial'),
+            row=1, 
+            col=1
+        )
+        fig.update_yaxes(
+            title_text="Total Amount ($)", 
+            title_font=dict(size=14, color='#2E8B57', family='Arial'),
+            row=1, 
+            col=1
+        )
 
         return fig

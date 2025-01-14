@@ -193,7 +193,7 @@ def initialize_redis():
 @st.cache_data
 def analyze_strategy_results():
     # Fetch the results from MongoDB (simulate this for now)
-    results_df = pd.DataFrame(list(initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION].find({})))
+    results_df = pd.DataFrame(list(initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION].find({"instrument": 'equity'})))
     
     # Ensure the profit/loss column is used correctly and already in decimal format
     results_df['profit_loss_pct'] = results_df['profit/loss'].str.replace('%', '').astype(float) / 100  # Adjusted column name
@@ -216,8 +216,8 @@ def analyze_strategy_results():
         "win_rate": round(win_rate * 100, 2),  # Convert to percentage
         "avg_profit": round(avg_profit * 100, 2),  # Convert to percentage
         "avg_loss": round(avg_loss * 100, 2),  # Convert to percentage
-        "best_trade": round(profits.max() * 100, 2),  # Convert to percentage
-        "worst_trade": round(losses.min() * 100, 2),  # Convert to percentage
+        "best_pick": round(profits.max() * 100, 2),  # Convert to percentage
+        "worst_pick": round(losses.min() * 100, 2),  # Convert to percentage
         "total_trades": total_trades
     }
 
@@ -1432,9 +1432,9 @@ def user_dashboard():
         _('Average Loss'),
         scrolling_message['avg_loss'],
         _('Best Trade'),
-        scrolling_message['best_trade'],
+        scrolling_message['best_pick'],
         _('Worst Trade'),
-        scrolling_message['worst_trade']
+        scrolling_message['worst_pick']
     )
     # Increment the view count each time the dashboard is accessed
     increment_dashboard_view_count()

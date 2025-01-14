@@ -2,9 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import plotly.subplots as sp
-import io, redis, time, json, pymongo, yfinance as yf
-from streamlit_autorefresh import st_autorefresh
-from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo
+import io, redis, time, pymongo
 import gettext
 import os
 # MongoDB Configuration

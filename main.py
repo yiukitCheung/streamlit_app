@@ -97,7 +97,10 @@ def main():
     set_translation(lang)
 
     # Language Selector
-    language = st.sidebar.radio("", ['English', 'French', 'Spanish', '中文'], key="language_selector")
+    st.sidebar.image("logo.png", use_column_width="auto")
+    st.sidebar.markdown("<div style='text-align: center;'></div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<p style='color: black; font-size: 18px; margin-bottom: 0; text-align: center;'>Language</p>", unsafe_allow_html=True)
+    language = st.sidebar.selectbox("", ['English', 'French', 'Spanish', '中文'], key="language_selector", label_visibility="collapsed")
     if language == '中文':
         lang = 'zh'
         st.session_state['language'] = 'zh'
@@ -110,7 +113,7 @@ def main():
     else:
         lang = 'en'
         st.session_state['language'] = 'en'
-
+        
     # Update translation dynamically
     set_translation(lang)
     
@@ -245,10 +248,9 @@ def main():
                     }
                     </style>
                 """, unsafe_allow_html=True)
-                
                 # Login section with styled header
                 st.markdown(
-                    f"<h2 style='text-align: center; color: #2c3e50;'>{_('Member Login')}</h2>",
+                    f"<h2 style='text-align: center; color: #2E8B57;'>{_('Member Login')}</h2>",
                     unsafe_allow_html=True
                 )                   
                 # Input fields with consistent styling
@@ -301,58 +303,64 @@ def main():
                     st.rerun()
                     
             with col2:
+                # Get the start and end date of the backtest results
+                start_date = sand_box_results[0]['Entry_date']
+                end_date = sand_box_results[-1]['Exit_date']
+                st.plotly_chart(StrategyEDA(start_date, end_date, instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
+                
+                st.markdown("<br><br>", unsafe_allow_html=True)
+            
+            intro_col, mission_col, principle_col = st.columns([1, 1, 1])
+            with intro_col:
                 st.markdown(_("""
-                <div stype="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #2E8B57;">{}</h2>
-                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #2E8B57;">{}</h2>
-                    <p style="font-size: 16px; line-height: 1.6;">
-                        {}
-                    </p>
-                    <p style="font-size: 16px; line-height: 1.6;">
-                        {}
-                    </p>
-                    <h3 style="color: #2E8B57;">{}</h3>
-                    <ul style="font-size: 16px; line-height: 1.6;">
-                        <li><b>{}:</b> {}</li>
-                        <li><b>{}:</b> {}</li>
-                        <li><b>{}:</b> {}</li>
-                    </ul>
-                    <h3 style="color: #2E8B57;">{}</h3>
-                    <p style="font-size: 16px; line-height: 1.6;">
-                        {} 
-                        {}
-                    </p>
-                </div>
-                """).format(_("About Us"),
-                            _("CondVest"),
-                            _("At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
-                            _("Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data."),
-                            _("Our Mission"),
-                            _("Clarity Over Complexity"),
-                            _("We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."),
-                            _("Responsible Investing"),
-                            _("At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."),
-                            _("Investor-Centric Approach"),
-                            _("Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information."),
-                            _("Our Principles"),
-                            _("We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."),
-                            _("By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
-                            _("Our Vision")),
-                unsafe_allow_html=True)
-            
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            
-            # Display Marketing Backtest Results
-            st.markdown(_("""
-                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; text-align: center;">
-                    <h2 style="color: #2E8B57;">{}</h2>
-                </div>
-            """).format(_("CondVest Empowers You to Win the Market !!!")), unsafe_allow_html=True)
-            # Get the start and end date of the backtest results
-            start_date = sand_box_results[0]['Entry_date']
-            end_date = sand_box_results[-1]['Exit_date']
-            st.plotly_chart(StrategyEDA(start_date, end_date, instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)
+                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #2E8B57;">{}</h2>
+                        <p style="font-size: 16px; line-height: 1.6;">
+                            {}
+                        </p>
+                        <p style="font-size: 16px; line-height: 1.6;">
+                            {}
+                        </p>
+                    </div>
+                """).format(
+                    _("About Us"),
+                    _("At CondVest, our mission is to simplify the complexities of the equity market for individual investors. We believe that everyone deserves access to clear, actionable insights without the noise that often surrounds market data. By integrating, analyzing, and distilling vast amounts of financial information, we provide investors with concise, easy-to-understand alerts and insights that truly matter. By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society."),
+                    _("Our automated alert system is powered by advanced technical analysis, designed to spotlight potential opportunities, highlight risks, and track capital flows in the market. We reduce the need for extensive due diligence, helping investors make informed decisions without the time-consuming process of sorting through overwhelming data.")
+                ), unsafe_allow_html=True)
+
+            with mission_col:
+                st.markdown(_("""
+                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #2E8B57;">{}</h2>
+                        <ul style="font-size: 16px; line-height: 1.6;">
+                            <li><b>{}:</b> {}</li>
+                            <li><b>{}:</b> {}</li>
+                            <li><b>{}:</b> {}</li>
+                        </ul>
+                    </div>
+                """).format(
+                    _("Our Mission"),
+                    _("Clarity Over Complexity"), _("We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."),
+                    _("Responsible Investing"), _("At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."),
+                    _("Investor-Centric Approach"), _("Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information.")
+                ), unsafe_allow_html=True)
+
+            with principle_col:
+                st.markdown(_("""
+                    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #2E8B57;">{}</h2>
+                        <p style="font-size: 16px; line-height: 1.6;">
+                            {}
+                        </p>
+                        <p style="font-size: 16px; line-height: 1.6;">
+                            {}
+                        </p>
+                    </div>
+                """).format(
+                    _("Our Vision"),
+                    _("We envision a world where individual investors have the tools they need to navigate the financial markets responsibly and profitably."),
+                    _("By guiding investors to make smarter, well-informed decisions, CondVest aims to contribute to a more financially empowered society.")
+                ), unsafe_allow_html=True)
             
         elif st.session_state['current_page'] == "Forgot Password":
             forgot_password()
