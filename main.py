@@ -198,9 +198,9 @@ def main():
             scrolling_text = " | ".join(
                 f"<span style='color: {'#4CAF50' if float(item['profit/loss'].split('%')[0]) > 0 else '#FF5733'}'>"
                 f"🚀 {item['symbol']}: Entry {item['Entry_date'].strftime('%Y-%m-%d')} | Exit {item['Exit_date'].strftime('%Y-%m-%d')} | "
-                f"Profit/Loss: {float(item['profit/loss'].split('%')[0]):.2f}%"
+                f"Profit/Loss: {float(item['profit/loss'].split('%')[0])/100:.2f}%"
                 f"</span>"
-                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss'].split('%')[0]) > 10) and (item['instrument'] == 'equity')
+                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss%'].split('%')[0]) > 10) and (item['instrument'] == 'equity')
             )
             # Display scrolling marquee in Streamlit
             st.markdown(
@@ -304,9 +304,8 @@ def main():
                     
             with col2:
                 # Get the start and end date of the backtest results
-                start_date = sand_box_results[0]['Entry_date']
-                end_date = sand_box_results[-1]['Exit_date']
-                st.plotly_chart(StrategyEDA(start_date, end_date, instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
+                import pandas as pd
+                st.plotly_chart(StrategyEDA(start_date = pd.to_datetime("2024-01-01"), end_date = pd.to_datetime("today"), instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
                 
                 st.markdown("<br><br>", unsafe_allow_html=True)
             

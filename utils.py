@@ -34,9 +34,10 @@ class StrategyEDA:
         # Convert profit/loss from string to float
         results_df = pd.DataFrame(results_df)
         results_df = results_df[results_df['instrument'] == self.instrument]
-        # Convert profit/loss to float
-        results_df['profit_loss_float'] = results_df['profit/loss'].str.rstrip('%').astype(float)
-        results_df['good_trade'] = results_df['profit_loss_float'] > 10
+        # Convert profit/loss to floattotal_captial
+        results_df['profit_loss_float'] = results_df['profit/loss%'].str.rstrip('%').astype(float) / 100
+        results_df['good_trade'] = results_df['profit_loss_float'] > 0.1
+        results_df['total_captial'] = results_df['total_captial'].astype(float)
         # Create subplots with different heights
         fig = make_subplots(rows=1, cols=1)
         
@@ -57,7 +58,6 @@ class StrategyEDA:
         
         results_df_sorted = results_df_sorted.reindex(date_range)
         results_df_sorted['total_captial'] = results_df_sorted['total_captial'].interpolate()
-        
         # Add Comparison Data
         if self.instrument == 'equity':
             nasdaq_data = self.get_nasdaq_return_data()
@@ -67,8 +67,7 @@ class StrategyEDA:
             raise ValueError(f"Invalid instrument: {self.instrument}")
         
         # Calculate returns for annotations
-        strategy_return = ((results_df_sorted['total_captial'].iloc[-1] / results_df_sorted['total_captial'].iloc[0]) - 1) * 100
-        
+        strategy_return = ((float(results_df_sorted['total_captial'].iloc[-1]) / float(results_df_sorted['total_captial'].iloc[0])) - 1) * 100
         # Plot strategy line
         fig.add_trace(
             go.Scatter(x=results_df_sorted.index, 
