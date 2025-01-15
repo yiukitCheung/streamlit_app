@@ -196,7 +196,7 @@ def analyze_strategy_results():
     results_df = pd.DataFrame(list(initialize_mongo_client()[DB_NAME][SANDBOX_COLLECTION].find({"instrument": 'equity'})))
     
     # Ensure the profit/loss column is used correctly and already in decimal format
-    results_df['profit_loss_pct'] = results_df['profit/loss'].str.replace('%', '').astype(float) / 100  # Adjusted column name
+    results_df['profit_loss_pct'] = results_df['profit/loss%'].str.replace('%', '').astype(float) / 100 # Adjusted column name
 
     # Separate winning and losing trades based on profit_loss_pct
     profits = results_df.loc[results_df['profit_loss_pct'] > 0, 'profit_loss_pct']
