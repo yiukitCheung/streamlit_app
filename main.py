@@ -305,7 +305,7 @@ def main():
             with col2:
                 # Get the start and end date of the backtest results
                 import pandas as pd
-                st.plotly_chart(StrategyEDA(start_date = pd.to_datetime("2024-01-01"), end_date = pd.to_datetime("today"), instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
+                st.plotly_chart(StrategyEDA(start_date = pd.to_datetime("2020-01-01"), end_date = pd.to_datetime("today"), instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
                 
                 st.markdown("<br><br>", unsafe_allow_html=True)
             
