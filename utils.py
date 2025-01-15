@@ -17,7 +17,7 @@ class StrategyEDA:
         nasdaq_data.dropna(inplace=True)
         
         # Assuming 10000 initial capital
-        nasdaq_data['total_asset'] = 10000 * (1 + nasdaq_data['return']).cumprod()
+        nasdaq_data['total_captial'] = 10000 * (1 + nasdaq_data['return']).cumprod()
         return nasdaq_data
     
     def get_bitcoin_return_data(self):
@@ -27,7 +27,7 @@ class StrategyEDA:
         bitcoin_data.dropna(inplace=True)
         
         # Assuming 10000 initial capital
-        bitcoin_data['total_asset'] = 10000 * (1 + bitcoin_data['return']).cumprod()    
+        bitcoin_data['total_captial'] = 10000 * (1 + bitcoin_data['return']).cumprod()    
         return bitcoin_data
     
     def plot_trading_analysis(self, results_df):
@@ -42,7 +42,7 @@ class StrategyEDA:
         
         # Process data for portfolio value plot
         results_df_sorted = results_df.sort_values('Exit_date')
-        first_data = pd.DataFrame({'total_asset': [10000], 'Exit_date': [pd.to_datetime(self.start_date)]})
+        first_data = pd.DataFrame({'total_captial': [10000], 'Exit_date': [pd.to_datetime(self.start_date)]})
         results_df_sorted = pd.concat([first_data, results_df_sorted]).fillna(0)
         results_df_sorted = results_df_sorted.reset_index(drop=True)
         
@@ -56,7 +56,7 @@ class StrategyEDA:
                                 freq='D')
         
         results_df_sorted = results_df_sorted.reindex(date_range)
-        results_df_sorted['total_asset'] = results_df_sorted['total_asset'].interpolate()
+        results_df_sorted['total_captial'] = results_df_sorted['total_captial'].interpolate()
         
         # Add Comparison Data
         if self.instrument == 'equity':
@@ -67,12 +67,12 @@ class StrategyEDA:
             raise ValueError(f"Invalid instrument: {self.instrument}")
         
         # Calculate returns for annotations
-        strategy_return = ((results_df_sorted['total_asset'].iloc[-1] / results_df_sorted['total_asset'].iloc[0]) - 1) * 100
+        strategy_return = ((results_df_sorted['total_captial'].iloc[-1] / results_df_sorted['total_captial'].iloc[0]) - 1) * 100
         
         # Plot strategy line
         fig.add_trace(
             go.Scatter(x=results_df_sorted.index, 
-                    y=results_df_sorted['total_asset'],
+                    y=results_df_sorted['total_captial'],
                     name='Strategy',
                     showlegend=False,
                     line=dict(color='#2E8B57', width=3)),
@@ -85,7 +85,7 @@ class StrategyEDA:
             fig.add_trace(
                 go.Scatter(
                     x=[pd.to_datetime(trade['Exit_date'])],
-                    y=[trade['total_asset']],
+                    y=[trade['total_captial']],
                     mode='markers+text',
                     marker=dict(symbol='star', size=25, color='gold'),
                     text=f"<b>{trade['symbol']}</b>",
@@ -98,10 +98,10 @@ class StrategyEDA:
         
         # Plot Bitcoin or NASDAQ with annotations
         if self.instrument == 'crypto':
-            bitcoin_return = ((bitcoin_data['total_asset'].iloc[-1] / bitcoin_data['total_asset'].iloc[0]) - 1) * 100
+            bitcoin_return = ((bitcoin_data['total_captial'].iloc[-1] / bitcoin_data['total_captial'].iloc[0]) - 1) * 100
             fig.add_trace(
                 go.Scatter(x=bitcoin_data.index, 
-                        y=bitcoin_data['total_asset'],
+                        y=bitcoin_data['total_captial'],
                         showlegend=False,
                         line=dict(color='rgba(247, 147, 26, 0.5)', width=2)),
                 row=1, col=1
@@ -123,10 +123,10 @@ class StrategyEDA:
                 font=dict(size=18)
             )
         elif self.instrument == 'equity':
-            nasdaq_return = ((nasdaq_data['total_asset'].iloc[-1] / nasdaq_data['total_asset'].iloc[0]) - 1) * 100
+            nasdaq_return = ((nasdaq_data['total_captial'].iloc[-1] / nasdaq_data['total_captial'].iloc[0]) - 1) * 100
             fig.add_trace(
                 go.Scatter(x=nasdaq_data.index, 
-                        y=nasdaq_data['total_asset'],
+                        y=nasdaq_data['total_captial'],
                         showlegend=False,
                         line=dict(color='rgba(85, 85, 85, 0.5)', width=2)),
                 row=1, col=1

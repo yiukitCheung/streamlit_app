@@ -627,6 +627,7 @@ def calculate_expected_value(symbol: str, instrument: str, selected_period: int)
         return 0, 0, 0
     
     # Find the ema support and resistance
+    
     for entry in expected_support:
         if entry == 'emas' and expected_support[entry] != float('-inf'):
             support = expected_support[entry]

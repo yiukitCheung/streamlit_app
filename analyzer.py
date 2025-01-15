@@ -96,8 +96,37 @@ class ExpectedReturnRiskAnalyzer:
 
         return available_point, current_price
 
+    def get_all_possible_trends(self, symbol, interval):    
+        # Fetch alert data for the symbol
+        long_term_alerts_dict = self.fetch_long_term_alerts(symbol, interval)
+        if len(long_term_alerts_dict) == 0:
+            st.warning(f"No Data found for {symbol} yet, you probably just contributed this stock!")
+            return False, False
+        
+        # Initialize data structure to store values for each interval
+        available_trends = {}
+        distinct_interval = set([entry['interval'] for entry in long_term_alerts_dict])
+        
+        # Process each alert entry
+        for entry in long_term_alerts_dict:
+            # Break if we have data for all intervals
+            if len(available_trends) == len(distinct_interval):
+                break
+                
+            # Initialize storage for new interval
+            if entry['interval'] not in available_trends:
+                if 'alerts' in entry and 'velocity_alert' in entry['alerts']:
+                    available_trends[entry['interval']] = entry['alerts']['velocity_alert']
+                else:
+                    available_trends[entry['interval']] = None
+            else:
+                continue
+                    
+        return available_trends
+    
     def find_sup_res(self, symbol, interval):
         available_point, close_price = self.get_all_possible_values(symbol, interval)
+        available_trends = self.get_all_possible_trends(symbol, interval)
         if not available_point or not close_price:
             return False, False
         
@@ -114,7 +143,6 @@ class ExpectedReturnRiskAnalyzer:
             if ema_resistance != float('inf') and 'emas' not in expected_resistance:
                 expected_resistance['emas'] = ema_resistance
             
-
             # Check structural areas
             area_support, area_resistance = self._check_structural_areas(available_point[interval], close_price)
             if area_support != float('-inf') and 'dense_area' not in expected_support:
@@ -128,9 +156,9 @@ class ExpectedReturnRiskAnalyzer:
                 expected_support['fibonacci'] = fib_support
             if fib_resistance != float('inf') and 'fibonacci' not in expected_resistance:
                 expected_resistance['fibonacci'] = fib_resistance
-
+        st.write(expected_support, expected_resistance)
         return expected_support, expected_resistance
-    
+
     def _check_ema_levels(self, interval_data, close_price):
         # Check if support and resistance is in the short term ema
         min_ema = min(interval_data['13ema'][0], interval_data['8ema'][0])
