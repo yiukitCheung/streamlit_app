@@ -156,7 +156,6 @@ class ExpectedReturnRiskAnalyzer:
                 expected_support['fibonacci'] = fib_support
             if fib_resistance != float('inf') and 'fibonacci' not in expected_resistance:
                 expected_resistance['fibonacci'] = fib_resistance
-        st.write(expected_support, expected_resistance)
         return expected_support, expected_resistance
 
     def _check_ema_levels(self, interval_data, close_price):
