@@ -1,18 +1,27 @@
+import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import streamlit as st
-import yfinance as yf
-# Plot return chart
+from pymongo import MongoClient
+
 class StrategyEDA:
-    def __init__(self, start_date, end_date, instrument="equity"):
-        self.start_date = start_date
-        self.end_date = end_date
+    def __init__(self, mongo_config, start_date, end_date, buy_signals, sell_signals, instrument):
+        self.mongo_config = mongo_config
+        self.start_date = pd.to_datetime(start_date)
+        self.end_date = pd.to_datetime(end_date)
         self.instrument = instrument
+        self.title = self.process_title(buy_signals, sell_signals)
+    
+    def process_title(self, buy_signals, sell_signals):
+        buy_signals = ', '.join(buy_signals)
+        sell_signals = ', '.join(sell_signals)
+        return f'{self.instrument} Buy: {buy_signals} | Sell: {sell_signals}'
     
     def get_nasdaq_return_data(self):
-        nasdaq_data = yf.download('^IXIC', start=self.start_date, end=self.end_date)
-        nasdaq_data = nasdaq_data[['Close']].rename(columns={'Close': 'close'})
+        mongo_client = MongoClient(self.mongo_config['url'])
+        nasdaq_data = pd.DataFrame(list(mongo_client[self.mongo_config['db_name']][self.mongo_config['warehouse_interval'] + '_data'].\
+            find({'symbol': '^IXIC',
+                    'date': {'$gte': self.start_date, '$lte': self.end_date},
+                    },
+                    {'date': 1, 'close': 1, '_id': 0})))
         nasdaq_data['return'] = nasdaq_data['close'].pct_change()
         nasdaq_data.dropna(inplace=True)
         
@@ -21,8 +30,12 @@ class StrategyEDA:
         return nasdaq_data
     
     def get_bitcoin_return_data(self):
-        bitcoin_data = yf.download('BTC-USD', start=self.start_date, end=self.end_date)
-        bitcoin_data = bitcoin_data[['Close']].rename(columns={'Close': 'close'})
+        mongo_client = MongoClient(self.mongo_config['url'])
+        bitcoin_data = pd.DataFrame(list(mongo_client[self.mongo_config['db_name']][self.mongo_config['warehouse_interval'] + '_data'].\
+            find({'symbol': 'BTC',
+                    'date': {'$gte': self.start_date, '$lte': self.end_date},
+                    },
+                    {'date': 1, 'close': 1, '_id': 0})))
         bitcoin_data['return'] = bitcoin_data['close'].pct_change()
         bitcoin_data.dropna(inplace=True)
         
@@ -31,33 +44,35 @@ class StrategyEDA:
         return bitcoin_data
     
     def plot_trading_analysis(self, results_df):
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        
         # Convert profit/loss from string to float
-        results_df = pd.DataFrame(results_df)
-        results_df = results_df[results_df['instrument'] == self.instrument]
-        # Convert profit/loss to floattotal_captial
-        results_df['profit_loss_float'] = results_df['profit/loss%'].str.rstrip('%').astype(float) / 100
-        results_df['good_trade'] = results_df['profit_loss_float'] > 0.1
-        results_df['total_captial'] = results_df['total_captial'].astype(float)
+        results_df['profit_loss_float'] = results_df['profit/loss'].str.rstrip('%').astype(float)
+        
         # Create subplots with different heights
-        fig = make_subplots(rows=1, cols=1)
+        fig = make_subplots(rows=2, cols=1, 
+                        row_heights=[0.7, 0.3],
+                        subplot_titles=(f'Portfolio Value Over Time',
+                                        f'Distribution of Returns'))
         
         # Process data for portfolio value plot
         results_df_sorted = results_df.sort_values('Exit_date')
         first_data = pd.DataFrame({'total_captial': [10000], 'Exit_date': [pd.to_datetime(self.start_date)]})
+        pd.set_option("future.no_silent_downcasting", True)
         results_df_sorted = pd.concat([first_data, results_df_sorted]).fillna(0)
         results_df_sorted = results_df_sorted.reset_index(drop=True)
-        
-        # Ensure Exit_date is unique before setting as index
-        results_df_sorted = results_df_sorted.groupby('Exit_date').last().reset_index()
         results_df_sorted.set_index('Exit_date', inplace=True)
 
         # Create date range and interpolate
         date_range = pd.date_range(start=pd.to_datetime(self.start_date), 
                                 end=pd.to_datetime(self.end_date), 
                                 freq='D')
-        
         results_df_sorted = results_df_sorted.reindex(date_range)
+        results_df_sorted['total_captial'] = results_df_sorted['total_captial'].astype(float)
         results_df_sorted['total_captial'] = results_df_sorted['total_captial'].interpolate()
+        results_df_sorted['monthly_return'] = results_df_sorted['total_captial'].pct_change(periods=30)
+        
         # Add Comparison Data
         if self.instrument == 'equity':
             nasdaq_data = self.get_nasdaq_return_data()
@@ -66,126 +81,126 @@ class StrategyEDA:
         else:
             raise ValueError(f"Invalid instrument: {self.instrument}")
         
-        # Calculate returns for annotations
-        strategy_return = ((float(results_df_sorted['total_captial'].iloc[-1]) / float(results_df_sorted['total_captial'].iloc[0])) - 1) * 100
         # Plot strategy line
         fig.add_trace(
             go.Scatter(x=results_df_sorted.index, 
                     y=results_df_sorted['total_captial'],
                     name='Strategy',
-                    showlegend=False,
-                    line=dict(color='#2E8B57', width=3)),
+                    line=dict(color='blue')),
             row=1, col=1
         )
-
-        # Add markers and text for good trades
-        good_trades = results_df[results_df['good_trade']]
-        for _, trade in good_trades.iterrows():
-            fig.add_trace(
-                go.Scatter(
-                    x=[pd.to_datetime(trade['Exit_date'])],
-                    y=[trade['total_captial']],
-                    mode='markers+text',
-                    marker=dict(symbol='star', size=25, color='gold'),
-                    text=f"<b>{trade['symbol']}</b>",
-                    textposition='top center',
-                    showlegend=False,
-                    textfont=dict(size=25, color='rgba(46, 139, 87, 0.7)')
-                ),
-                row=1, col=1
-            )
         
-        # Plot Bitcoin or NASDAQ with annotations
+        # Plot Bitcoin
         if self.instrument == 'crypto':
-            bitcoin_return = ((bitcoin_data['total_captial'].iloc[-1] / bitcoin_data['total_captial'].iloc[0]) - 1) * 100
             fig.add_trace(
                 go.Scatter(x=bitcoin_data.index, 
                         y=bitcoin_data['total_captial'],
-                        showlegend=False,
-                        line=dict(color='rgba(247, 147, 26, 0.5)', width=2)),
-                row=1, col=1
+                    name='Bitcoin',
+                    line=dict(color='rgba(247, 147, 26, 0.5)')),  # Bitcoin orange
+            row=1, col=1
             )
-            # Add cumulative return text with enhanced styling and comparison
-            outperformance = strategy_return - bitcoin_return
-            performance_color = '#2E8B57' if outperformance > 0 else '#DC143C'
-            fig.add_annotation(
-                x=0.02,
-                y=0.98,
-                xref="paper",
-                yref="paper",
-                text=f'<b> Crypto Performance Analysis</b><br><br>' +
-                    f'<span style="color:{performance_color}">CondVest: <b>{strategy_return:+.1f}%</b></span><br>' +
-                    f'Bitcoin: {bitcoin_return:+.1f}%<br><br>' +
-                    f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
-                showarrow=False,
-                align="left",
-                font=dict(size=18)
-            )
-        elif self.instrument == 'equity':
-            nasdaq_return = ((nasdaq_data['total_captial'].iloc[-1] / nasdaq_data['total_captial'].iloc[0]) - 1) * 100
+        # Plot NASDAQ
+        if self.instrument == 'equity':
             fig.add_trace(
                 go.Scatter(x=nasdaq_data.index, 
-                        y=nasdaq_data['total_captial'],
-                        showlegend=False,
-                        line=dict(color='rgba(85, 85, 85, 0.5)', width=2)),
-                row=1, col=1
-            )
-            # Add cumulative return text with enhanced styling and comparison
-            outperformance = strategy_return - nasdaq_return
-            performance_color = '#2E8B57' if outperformance > 0 else '#DC143C'
-            fig.add_annotation(
-                x=0.02,
-                y=0.98,
-                xref="paper",
-                yref="paper",
-                text=f'<b> Stock Performance Analysis</b><br>' +
-                    f'<span style="color:{performance_color}">CondVest: <b>{strategy_return:+.1f}%</b></span><br>' +
-                    f'NASDAQ: {nasdaq_return:+.1f}%<br>' +
-                    f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
-                showarrow=False,
-                align="left",
-                font=dict(size=18)
-                
-            )
-
-        # Update layout with log y-axis and prominent axes
-        fig.update_layout(
-            height=650,
-            showlegend=False,
-            title=dict(
-                text="CondVest Empowers You to Win the Market !!!",
-                x=0.5,
-                y=0.95,
-                xanchor='center',
-                yanchor='top',
-                font=dict(size=24, color='#2E8B57')
-            ),
-            xaxis=dict(
-                range=[pd.to_datetime(self.start_date), pd.to_datetime(self.end_date)],
-                showgrid=False,
-                mirror=False,
-                tickfont=dict(size=16, color='black', family='Arial Bold')  # Made tick values more prominent
-            ),
-            yaxis=dict(
-                type='log',
-                showgrid=False,
-                mirror=False,
-                tickfont=dict(size=16, color='#2E8B57', family='Arial Bold')  # Made tick values more prominent
-            )
+                    y=nasdaq_data['total_captial'],
+                    name='NASDAQ',
+                    line=dict(color='rgba(85, 85, 85, 0.5)')),  # Dark gray
+            row=1, col=1
         )
         
-        # Update axes labels to match overall style
-        fig.update_xaxes(
-            title_text="Date", 
-            title_font=dict(size=14, color='#2E8B57', family='Arial'),
-            row=1, 
-            col=1
+        # Add initial principle line
+        fig.add_hline(y=10000, line_dash="dash", line_color="gray", 
+                    annotation_text="Initial Principle",
+                    row=1, col=1)
+    
+        # Add bear market shading
+        fig.add_vrect(
+            x0="2022-01-01", x1="2022-12-31",
+            fillcolor="red", opacity=0.1,
+            layer="below", line_width=0,
+            row=1, col=1
         )
-        fig.update_yaxes(
-            title_text="Total Amount ($)", 
-            title_font=dict(size=14, color='#2E8B57', family='Arial'),
-            row=1, 
-            col=1
+        
+        # Add final values annotation
+        strategy_final = results_df_sorted['total_captial'].iloc[-1]
+        if self.instrument == 'equity':
+            nasdaq_final = nasdaq_data['total_captial'].iloc[-1]
+        elif self.instrument == 'crypto':
+            bitcoin_final = bitcoin_data['total_captial'].iloc[-1]
+        else:
+            raise ValueError(f"Invalid instrument: {self.instrument}")
+        
+        # Position annotations based on log scale
+        max_y = results_df_sorted['total_captial'].max()
+        
+        if self.instrument == 'equity':
+            fig.add_annotation(
+                text=f'Strategy Final: ${strategy_final:,.2f} (NASDAQ Final: ${nasdaq_final:,.2f})',
+                x=pd.to_datetime(self.start_date) + pd.Timedelta(days=365),
+                y=max_y * 0.9,
+                showarrow=False,
+                row=1, col=1
+            )
+        elif self.instrument == 'crypto':
+            fig.add_annotation(
+                text=f'Strategy Final: ${strategy_final:,.2f} (Bitcoin Final: ${bitcoin_final:,.2f})',
+                x=pd.to_datetime(self.start_date) + pd.Timedelta(days=365),
+                y=max_y * 0.9,
+                showarrow=False,
+                row=1, col=1
+            )
+        else:
+            raise ValueError(f"Invalid instrument: {self.instrument}")
+        # Add monthly return annotations adjusted for log scale
+        for i in range(0, len(results_df_sorted), 30):
+            if i+30 < len(results_df_sorted):
+                monthly_return = results_df_sorted['monthly_return'].iloc[i+ 30]
+                if not pd.isna(monthly_return):
+                    date = results_df_sorted.index[i+ 30]
+                    current_value = results_df_sorted['total_captial'].iloc[i+ 30]
+                    y_pos = current_value * 1.1  # Position 10% above the current value 
+                    color = 'green' if monthly_return > 0 else 'red' 
+                    fig.add_annotation( 
+                        text=f'{monthly_return:.3%}', 
+                        x=date, 
+                        y=y_pos, 
+                        showarrow=False, 
+                        font=dict(color=color, size=10), 
+                        textangle=90, 
+                        row=1,  
+                        col=1
+                    )
+        
+        # Add returns distribution plot
+        fig.add_trace(
+            go.Histogram(x=results_df['profit_loss_float'],
+                        name='Returns Distribution',
+                        nbinsx=180),
+            row=2, col=1
         )
+        
+        # Add vertical line at x=0 for distribution
+        fig.add_vline(x=0, line_dash="dash", line_color="red", row=2, col=1)
 
-        return fig
+        # Update layout with log y-axis
+        fig.update_layout(
+            height=800,
+            width=1200,
+            showlegend=True,
+            title_text=self.title,
+            xaxis=dict(
+                range=[pd.to_datetime(self.start_date), pd.to_datetime(self.end_date)]
+            ),
+            yaxis=dict(type='linear')  # Set y-axis to logarithmic scale
+        )
+        
+        # Update axes labels
+        fig.update_xaxes(title_text="Date", row=1, col=1)
+        fig.update_xaxes(title_text="Return %", row=2, col=1,)
+        fig.update_yaxes(title_text="Total Amount ($)", row=1, col=1)
+        fig.update_yaxes(title_text="Count", row=2, col=1)
+        
+        # Show the plot
+        fig.show()
+        

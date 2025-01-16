@@ -736,17 +736,6 @@ def compute_portfolio_metrics(username: str):
     
     # Initialize MongoDB connection
     collection_obj = initialize_mongo_client()[DB_NAME][PORTFOLIO_COLLECTION]
-    
-    # Initialize Redis connection
-    redis_client = initialize_redis()
-    cache_key = f"portfolio_metrics_{username}"
-
-    # Try to get cached results
-    cached_result = redis_client.get(cache_key)
-    if cached_result:
-        
-        metrics = json.loads(cached_result)
-        return metrics
 
     # Initialize metrics if not exist
     if not collection_obj.find_one({'username': username}, projection={'metrics': True, '_id': False}):
@@ -779,7 +768,6 @@ def compute_portfolio_metrics(username: str):
         portfolio_df.loc[symbol_list, 'current_close'] = portfolio_df.loc[symbol_list].index.map(current_prices)
         
         # Calculate risk index
-        
         for symbol in symbol_list:
             instrument = portfolio_df.loc[symbol, 'instrument']
             possible_downside = find_expected_value(symbol, instrument, 1)[0]
@@ -814,9 +802,6 @@ def compute_portfolio_metrics(username: str):
         {'username': username}, 
         {'$set': {'metrics': metrics}}
     )
-
-    # Cache the results for 1 hour (3600 seconds)
-    redis_client.setex(cache_key, 3600, json.dumps(metrics))
     
     return metrics
 
