@@ -10,6 +10,9 @@ from polygon import RESTClient
 import time
 import io
 import redis
+import phonenumbers
+import pycountry
+
 
 # ChatGPT
 chatgpt_client = OpenAI(api_key=st.secrets["chatgpt"]["api_key"])
@@ -38,6 +41,35 @@ auth_token = st.secrets['twilio']['AUTH_TOKEN']
 client = Client(account_sid, auth_token)
 polygon_client = RESTClient(api_key=polygon_api_key)
 
+# Function to get country codes
+def get_country_codes():
+    country_codes = []
+    for country in pycountry.countries:
+        try:
+            dial_code = f"+{phonenumbers.country_code_for_region(country.alpha_2)}"
+            country_codes.append(f"{country.name} ({dial_code})")
+        except KeyError:
+            # Skip countries without a dialing code
+            continue
+    return sorted(country_codes)
+
+# Function to validate phone numbers
+def validate_phone_number(phone, country_code):
+    try:
+        
+        # Extract the country code (e.g., +1)
+        region_code = country_code.split(" ")[-1].strip("()").strip("+")
+        # Add the country code to the phone number
+        phone = f"+{region_code}{phone}"
+        parsed_number = phonenumbers.parse(phone, None)
+        
+        if phonenumbers.is_valid_number(parsed_number):
+            return phone
+        else:
+            return None
+    except phonenumbers.NumberParseException:
+        return None
+    
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -101,12 +133,17 @@ def init_postgres():
 
 def sign_up_process():
     twil_phone_number = st.secrets['twilio']['PHONE_NUMBER']
-    st.subheader('Sign Up')
-
     with st.form(key='signup_form', clear_on_submit=True):
+        st.header('Sign Up')
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         confirm_password = st.text_input("Confirm Password", type="password")
+
+        # Dropdown for country codes
+        country_codes = get_country_codes()
+        selected_country = st.selectbox("Select Your Country", country_codes)
+        
+        # Input for phone number
         phone_number = st.text_input("Phone Number")
 
         if st.form_submit_button("Create"):
@@ -119,15 +156,17 @@ def sign_up_process():
             if not validate_username(username):
                 st.error("Invalid username format.")
                 return
-            if not validate_phone_number(phone_number):
-                st.error("Phone number must be 10 digits.")
+            # Validate phone number
+            validated_phone = validate_phone_number(phone_number, selected_country)
+            if not validated_phone:
+                st.error("Please enter a valid phone number.")
                 return
 
             # Hash the password and insert user data
             hashed_pw = hash_password(password)
-            if insert_user_data(username, hashed_pw, phone_number):
+            if insert_user_data(username, hashed_pw, validated_phone):
                 st.success(f"Account created successfully for {username}!")
-                send_welcome_msg(client, twil_phone_number, phone_number, username, password)
+                send_welcome_msg(client, twil_phone_number, validated_phone, username, password)
                 st.balloons()
 
                 # Redirect to login page after successful signup
@@ -228,9 +267,6 @@ def get_specific_phone_number(username, phone_number):
 
 def validate_username(username):
     return bool(re.match(r'^[a-zA-Z0-9_]+$', username))
-
-def validate_phone_number(phone_number):
-    return bool(re.match(r'^[0-9]{10}$', phone_number))
 
 def insert_user_data(username, password, phone_number):
     try:
