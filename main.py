@@ -14,7 +14,7 @@ from short_term import short_term_dashboard
 from settings_page import settings_page
 import gettext, os, time
 from utils import StrategyEDA
-
+import pandas as pd
 # OpenAI Configuration
 client = OpenAI(api_key=st.secrets['chatgpt']['api_key'])
 assistant_id = st.secrets['chatgpt']['assistant_id']
@@ -38,8 +38,32 @@ REDIS_HOST = st.secrets['redis']['host']
 REDIS_PORT = st.secrets['redis']['port']
 REDIS_PASSWORD = st.secrets['redis']['password']
 
+
 def initialize_redis():
     return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
+
+@st.cache_resource
+def initialize_mongo_client():
+    try:
+        client = MongoClient(st.secrets["mongo"]["host"])
+    except Exception as e:
+        st.error(f"Error initializing MongoDB client: {e}")
+        return None
+    return client
+
+@st.cache_data
+def get_most_current_trading_date() -> str:
+    today = pd.to_datetime('today')
+    current_date = today if today.hour > 14 else today - pd.Timedelta(days=1)
+    # Check if today is a weekend or a public holiday
+    if current_date.weekday() == 5:
+        current_date -= pd.Timedelta(days=1)
+    if current_date.weekday() == 6:
+        current_date -= pd.Timedelta(days=2)
+    if current_date.weekday() == 0 and current_date.hour <= 7:
+        current_date -= pd.Timedelta(days=3)
+    current_date = current_date.strftime('%Y-%m-%d')
+    return current_date
 
 # Fetch Sandbox testing results
 def fetch_sandbox_records():
@@ -50,6 +74,17 @@ def fetch_sandbox_records():
         return records
     except Exception as e:
         st.error(f"Error fetching sandbox records: {e}")
+        return []
+    
+def fetch_alert_data_last_3_candles():
+    current_date = get_most_current_trading_date()
+    try:
+        collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
+        query = {"date": {"$gte": pd.to_datetime(current_date) - pd.Timedelta(days=3)}}
+        cursor = collection_obj.find(query)
+        return list(cursor)
+    except Exception as e:
+        st.error(f"System Error, Please wait...: {str(e)}")
         return []
 
 # Initialize session state
@@ -65,6 +100,7 @@ if "alert_symbols" not in st.session_state:
     st.session_state["alert_symbols"] = []
 if "messages" not in st.session_state:
     st.session_state["messages"] = messages
+        
 if "language" not in st.session_state:
     st.session_state["language"] = "en"
 

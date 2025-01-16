@@ -471,8 +471,11 @@ msgstr "警报尚无"
 msgid "Experience CondVest without an account!!"
 msgstr "体验CondVest，无需注册!!"
 
-msgid "CondVest AI Advisor Chat"
-msgstr "CondVest AI 投资顾问"
+msgid "CondVest AI Market Analysis"
+msgstr "CondVest AI市场分析"
 
 msgid "Stock Indepth Dashboard"
 msgstr "股票深入分析"
+
+msgid "Ask about market conditions, trends, or specific symbols..."
+msgstr "询问市场条件、趋势或特定标的..."

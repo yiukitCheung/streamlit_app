@@ -88,7 +88,7 @@ class StrategyEDA:
                     mode='markers+text',
                     marker=dict(symbol='star', size=25, color='gold'),
                     text=f"<b>{trade['symbol']}</b>",
-                    textposition='top left',
+                    textposition='top center',
                     showlegend=False,
                     textfont=dict(size=25, color='rgba(46, 139, 87, 0.7)')
                 ),
@@ -138,9 +138,9 @@ class StrategyEDA:
                 y=0.98,
                 xref="paper",
                 yref="paper",
-                text=f'<b> Stock Performance Analysis</b><br><br>' +
+                text=f'<b> Stock Performance Analysis</b><br>' +
                     f'<span style="color:{performance_color}">CondVest: <b>{strategy_return:+.1f}%</b></span><br>' +
-                    f'NASDAQ: {nasdaq_return:+.1f}%<br><br>' +
+                    f'NASDAQ: {nasdaq_return:+.1f}%<br>' +
                     f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
                 showarrow=False,
                 align="left",

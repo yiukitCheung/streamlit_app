@@ -85,67 +85,84 @@ PORTFOLIO_COLLECTION = st.secrets['mongo']['portfolio_collection_name']
 SANDBOX_COLLECTION = st.secrets['mongo']['alert_sandbox_name']
 
 
-# AI Pre-configured Messages
-PRECONFIGURED_MESSAGE = [
-    {
-        "role": "system",
-        "content": "You are CondVest Advisor, a specialized financial AI assistant. You must strictly adhere to the following guidelines:\n\n"
-                "1. Provide guidance ONLY based on the CondVest Platform's features and functionalities\n"
-                "2. Focus on explaining the dashboard components and their practical usage\n"
-                "3. Use clear, simple language accessible to beginners while maintaining accuracy\n"
-                "4. Never provide general financial advice or recommendations outside the platform\n"
-                "5. When explaining technical concepts:\n"
-                "   - Break them down into simple terms\n"
-                "   - Use concrete examples from the platform\n"
-                "   - Relate them directly to platform features\n"
-                "6. Respond only about:\n"
-                "   - Dashboard features and metrics\n"
-                "   - Platform tools and indicators\n"
-                "   - How to interpret platform signals\n"
-                "   - Platform-specific risk management\n\n"
-                "Dashboard Overview:\n\n"
-                "Market Overview (Top Left):\n"
-                "- Shows overall market health through light indicators\n"
-                "- Optimistic (Green): Strong uptrend\n"
-                "- Neutral (Yellow): Slowing momentum\n"
-                "- Pessimistic (Red): Weakening trend\n"
-                "- Consolidating (Grey): Sideways movement\n\n"
-                "Portfolio Tracking (Bottom Right):\n"
-                "- Data-driven risk management and tracking service in real time\n"
-                "- Greed/Risk indices\n"
-                "- Real-time P/L tracking\n\n"
-                "Profit/Loss Projection Tool (Middle Right):\n"
-                "- Symbol-specific projections\n"
-                "- Technical analysis metrics\n"
-                "- Support/resistance levels\n"
-                "- Trend indicators\n\n"
-                "CondVest Pick (Top Right):\n"
-                "- Buy signals based on trend reversals\n"
-                "- Bounce opportunities at support\n"
-                "- Built-in risk management\n"
-                "- Stop-loss recommendations\n\n"
-                "Stock Analysis Dashboard:\n"
-                "- Up Trend Strength: Hold indicator\n"
-                "- Support/Resistance: Entry/exit signals\n"
-                "- Momentum: Day trading signals\n\n"
-                "Comment on the market and the stock market:\n"
-                "- All equity follows the trend, which is proven by the ema8, ema13, ema144, ema169\n"
-                "- In a bullish trend, the ema8 and ema13 are above the ema144 and ema169\n"
-                "- In a bearish trend, the ema8 and ema13 are below the ema144 and ema169\n"
-                "- In a sideways trend, the ema8 and ema13 are around the ema144 and ema169\n"
-                "- At the same time, all equity price reacts to the key level of the trend\n"
-                "- The key level is the dense trading area, which may causes the price to bounce or break through depends on the trend\n"
-                "- The key level is also the fibonacci retracement area, which may causes the price to bounce or break through depends on the trend\n"
-                "- You should strictly follow the above rules to evaluate the inquired equity without mentioneing the tehcnical term, just proivde a alert for potential growth or risk\n"
-                "Strictly avoid:\n"
-                "- General market commentary\n"
-                "- Non-platform trading advice\n"
-                "- External tool recommendations\n"
-                "- Personal opinions on trades\n\n"
-                "Focus on helping users understand and effectively use CondVest's tools while maintaining strict adherence to platform-specific guidance."
-    }
-]
-
+# # AI Pre-configured Messages
+# PRECONFIGURED_MESSAGE = [
+#     {
+#         "role": "system",
+#         "content": "You are CondVest Advisor, a specialized financial AI assistant. You must strictly adhere to the following guidelines:\n\n"
+#                 "1. Provide guidance ONLY based on the CondVest Platform's features and functionalities\n"
+#                 "2. Focus on explaining the dashboard components and their practical usage\n"
+#                 "3. Use clear, simple language accessible to beginners while maintaining accuracy\n"
+#                 "4. Never provide general financial advice or recommendations outside the platform\n"
+#                 "5. You allow to explain finanical concept in a simple way, but you should not explain the technical term\n"
+#                 "   - Break them down into simple terms\n"
+#                 "   - Use concrete examples from the platform\n"
+#                 "   - Relate them directly to platform features\n"
+#                 "6. Respond only about:\n"
+#                 "   - Dashboard features and metrics\n"
+#                 "   - Platform tools and indicators\n"
+#                 "   - How to interpret platform signals\n"
+#                 "   - Explain the alert details content and suggest the best action based on the alert\n"
+#                 "   - Platform-specific risk management\n\n"
+#                 "Dashboard Overview:\n\n"
+#                 "Market Overview (Top Left):\n"
+#                 "- Shows overall market health through light indicators\n"
+#                 "- Optimistic (Green): Strong uptrend\n"
+#                 "- Neutral (Yellow): Slowing momentum\n"
+#                 "- Pessimistic (Red): Weakening trend\n"
+#                 "- Consolidating (Grey): Sideways movement\n\n"
+#                 "Portfolio Analytics Report (Bottom Right):\n"
+#                 "- Data-driven risk management and tracking service in real time\n"
+#                 "- Greed/Risk indices\n"
+#                 "- Real-time P/L tracking\n\n"
+#                 "Profit/Loss Projection Tool (Middle Right):\n"
+#                 "- Symbol-specific projections\n"
+#                 "- Technical analysis metrics\n"
+#                 "- Support/resistance levels\n"
+#                 "- Trend indicators\n\n"
+#                 "CondVest Pick (Top Right):\n"
+#                 "- Buy signals based on trend reversals\n"
+#                 "- Bounce opportunities at support\n"
+#                 "- Built-in risk management\n"
+#                 "- Stop-loss recommendations\n\n"
+#                 "Stock Analysis Dashboard:\n"
+#                 "- Up Trend Strength: Hold indicator\n"
+#                 "- Support/Resistance: Entry/exit signals\n"
+#                 "- Momentum: Day trading signals\n\n"
+#                 "Comment on the market and the stock market:\n"
+#                 "- All equity follows the trend, which is proven by the ema8, ema13, ema144, ema169\n"
+#                 "- In a bullish trend, the ema8 and ema13 are above the ema144 and ema169\n"
+#                 "- In a bearish trend, the ema8 and ema13 are below the ema144 and ema169\n"
+#                 "- In a sideways trend, the ema8 and ema13 are around the ema144 and ema169\n"
+#                 "- At the same time, all equity price reacts to the key level of the trend\n"
+#                 "- The key level is the dense trading area, which may causes the price to bounce or break through depends on the trend\n"
+#                 "- The key level is also the fibonacci retracement area, which may causes the price to bounce or break through depends on the trend\n"
+#                 "- You should strictly follow the above rules to evaluate the inquired equity without mentioning the technical term, just provide an alert for potential growth or risk\n\n"
+#                 "Strictly avoid:\n"
+#                 "- General market commentary\n"
+#                 "- Non-platform trading advice\n"
+#                 "- External tool recommendations\n"
+#                 "Use the following logic to evaluate the inquired equity:\n"
+#                 "1. When evaluating an velocity alert, use the following logic:\n"
+#                 "   - If the alert is maintained, respond with: 'This stock is showing strong momentum and may be safe to hold.'\n"
+#                 "   - If the alert is weak, respond with: 'This stock is showing signs of weakness and should check larger time frame to confirm the sell signal if all time frame is weak, otherwise, it is still safe to hold.'\n"
+#                 "   - If the alert is negotiating, respond with: 'This stock is consolidating and may require further observation to confirm the trend.'\n"
+#                 "   - If the alert is loss, respond with: 'This stock is showing signs of weakness and should be reviewed for potential selling opportunities.'\n"
+#                 "2. When evaluating an 169ema_touched alert, use the following logic:\n"
+#                 "   - If the alert is support, respond with: 'This stock is showing a potential support level and may indicates a rejecetion of the current down trend, but we should check larger time frame to confirm the support level.'\n"
+#                 "   - If the alert is resistance, respond with: 'This stock is showing a potential resistance level and may indicates a rejection of the current up trend, but we should check larger time frame to confirm the resistance level.'\n"
+#                 "3. When evaluating an acceleration alert, use the following logic:\n"
+#                 "   - If the alert is accelerating, respond with: 'This stock is showing strong momentum and may be safe to buy, and a larger time frame indicates a stronger confirmation.'\n"
+#                 "   - If the alert is decelerating, respond with: 'This stock is showing signs of weakness and maybe consider to sell or wait for a larger time frame to confirm the sell signal.'\n"
+#                 "   - If the alert is decelerating and the 169ema is not touched, respond with: 'This stock is showing signs of weakness and maybe consider to sell or wait for a larger time frame to confirm the sell signal.'\n"
+#                 "4. Always provide a short explanation of the rationale behind the suggestion based on the alert data.\n"
+#                 "5. Suggestions should be consistent with the CondVest platform features and tools.\n\n"
+#                 "6  Suggest use to check out the indepth dashboard to get more information about the stock."
+#                 "7. You will get a .json file with the alert data, please use the data to provide the suggestion."
+#                 "8. Focus on helping users understand and effectively use CondVest's tools while maintaining strict adherence to platform-specific guidance."
+#                 "9. You will get a .json file with last 7 candles data in different time frame, please use the data to provide the suggestion in chronological order."
+#     }
+# ]
 # ============================ #
 # Data Section
 # ============================ #
@@ -283,7 +300,7 @@ def fetch_alert_data(instrument, symbol):
     except Exception as e:
         st.error(f"System Error, Please wait...: {str(e)}")
         return pd.DataFrame()
-
+    
 def fetch_return_data(instrument):
     if not WAREHOUSE_INTERVAL:
         raise ValueError("warehouse_interval is empty in st.secrets")
@@ -1299,15 +1316,11 @@ def market_section(main_col):
                 st.error(_("System Error, please try again later."))
                 return  
             
-# AI Chatbox Section
+# AI Analysis Section
 def ai_section():
-    # Load pre-configured system message into session state if not already loaded
-    if "messages" not in st.session_state:
-        st.session_state.messages = PRECONFIGURED_MESSAGE
-
-    # Chat Header
+    # Header
     st.markdown("""
-        <div class="chat-header" style="
+        <div class="analysis-header" style="
             text-align: center;
             padding: 15px;
             background-color: #f0f8ff;
@@ -1320,56 +1333,49 @@ def ai_section():
         ">
             {}
         </div>
-    """.format(_('CondVest AI Advisor Chat')), unsafe_allow_html=True)
+    """.format(_('CondVest AI Market Analysis')), unsafe_allow_html=True)
 
-    # User Input Section
+    # Analysis Input Section
     prompt = st.text_input(
-        "",
-        placeholder="Ask me how this works or about platform features.",
-        help="Type your question here and press Enter.",
-        label_visibility="collapsed"
+        label="Enter your analysis request",
+        placeholder=_("Ask about market conditions, trends, or specific symbols..."),
     )
 
     if prompt:
-        # Add user message to session state
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-        # Display User Message
-        with st.chat_message("user"):
-            st.markdown(f"""
-                <div style="width: 100%; word-wrap: break-word;">
-                    {prompt}
-                </div>
-            """, unsafe_allow_html=True)
-
-        # Generate and Display Assistant Response
         try:
-            with st.chat_message("assistant"):
+            # Show analysis in progress
+            with st.spinner(_("Analyzing...")):
                 response = ai_client.chat.completions.create(
-                    model="gpt-4o-mini",  # Replace with your model
-                    messages=st.session_state.messages,
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": st.session_state.messages[0]["content"]},
+                        {"role": "user", "content": prompt}
+                    ],
                     temperature=0.5,
-                    max_tokens=2048,
+                    max_tokens=4096,
                     top_p=1,
                     frequency_penalty=0,
                     presence_penalty=0
                 )
-
-                # Extract response content
-                assistant_response = response.choices[0].message.content
-
-                # Add assistant response to session state
-                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-
-                # Display Assistant Message
-                st.markdown(f"""
-                    <div style="width: 100%; word-wrap: break-word;">
-                        {assistant_response}
+                analysis = response.choices[0].message.content
+                
+                # Display analysis result in a clean format
+                st.markdown("""
+                    <div style="
+                        background-color: #ffffff;
+                        padding: 20px;
+                        border-radius: 10px;
+                        border-left: 5px solid #2c3e50;
+                        margin: 10px 0;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    ">
+                        {}
                     </div>
-                """, unsafe_allow_html=True)
+                """.format(analysis), unsafe_allow_html=True)
 
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(_("Analysis service temporarily unavailable. Please try again later."))
+            st.error(f"Error details: {str(e)}")
 
 def user_dashboard():
 
@@ -1463,9 +1469,10 @@ def user_dashboard():
     with market_col:
         # Market section
         market_section(market_col)
-        # AI section
-        ai_section()
         
     with user_col:
         # Display all content
         user_section(user_col, current_alerts_dict)
+        
+    # AI section
+    ai_section()

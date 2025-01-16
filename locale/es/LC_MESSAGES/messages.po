@@ -439,8 +439,11 @@ msgstr "Sin Alertas Aún"
 msgid "Experience CondVest without an account!!"
 msgstr "¡Experimente CondVest sin una cuenta!!"
 
-msgid "CondVest AI Advisor Chat"
-msgstr "Chat del Asesor AI de Condvest"
+msgid "CondVest AI Market Analysis"
+msgstr "Análisis de Mercado AI de CondVest"
+
+msgid "Ask about market conditions, trends, or specific symbols..."
+msgstr "Pregunte sobre condiciones del mercado, tendencias o símbolos específicos..."
 
 msgid "Stock Indepth Dashboard"
 msgstr "Panel de Análisis Profundo de Acciones"

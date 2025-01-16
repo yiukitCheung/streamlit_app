@@ -259,8 +259,8 @@ msgstr "Candlesticks"
 msgid "System Error, please try again later."
 msgstr "System Error, please try again later."
 
-msgid "Condvest AI Advisor Chat"
-msgstr "Condvest AI Advisor Chat"
+msgid "CondVest AI Market Analysis"
+msgstr "CondVest AI Market Analysis"
 
 msgid "Ask me what is this about and how does it work?"
 msgstr "Ask me what is this about and how does it work?"
@@ -441,3 +441,6 @@ msgstr "Experience CondVest without an account!!"
 
 msgid "Stock Indepth Dashboard"
 msgstr "Stock Indepth Dashboard"
+
+msgid "Ask about market conditions, trends, or specific symbols..."
+msgstr "Ask about market conditions, trends, or specific symbols..."
