@@ -189,21 +189,22 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
                 fillcolor='rgba(255,0,0,0.3)',
                 showlegend=False
             ))
-                        
+    # Add latest volume spikes to the candlestick chart
+    if len(vol_spike_alert_df) > 0:
         # Plot the volume spike
-        for _, row in vol_spike_alert_df.iterrows():
-            if row.get('bullish_volume_spike') == 1.0 and pd.notna(row['datetime']):
-                fig.add_trace(go.Scatter(x=[row['datetime']],
-                                        y=[row['close']], 
-                                        mode='markers', 
-                                        marker=dict(symbol='arrow-up', color='blue', size=24), 
-                                        name='Bullish Volume Spike'))
-            elif row.get('bearish_volume_spike') == 1.0 and pd.notna(row['datetime']):
-                fig.add_trace(go.Scatter(x=[row['datetime']], 
-                                        y=[row['close']], 
-                                        mode='markers', 
-                                        marker=dict(symbol='arrow-down', color='yellow', size=24), 
-                                        name='Bearish Volume Spike'))   
+        latest_vol_spike = vol_spike_alert_df.sort_values('datetime').iloc[-1]
+        if latest_vol_spike.get('bullish_volume_spike') == 1.0 and pd.notna(latest_vol_spike['datetime']):
+            fig.add_trace(go.Scatter(x=[latest_vol_spike['datetime']],
+                                    y=[latest_vol_spike['close'] * 1.005], 
+                                    mode='markers', 
+                                    marker=dict(symbol='arrow-up', color='green', size=24), 
+                                    name='Bullish'))
+        elif latest_vol_spike.get('bearish_volume_spike') == 1.0 and pd.notna(latest_vol_spike['datetime']):
+            fig.add_trace(go.Scatter(x=[latest_vol_spike['datetime']], 
+                                    y=[latest_vol_spike['close'] * 1.005], 
+                                    mode='markers', 
+                                    marker=dict(symbol='arrow-down', color='red', size=24), 
+                                    name='Bearish'))   
                 
     # grab first and last observations from df.date and make a continuous date range from that
     dt_all = pd.date_range(start=filtered_df['datetime'].iloc[0],end=filtered_df['datetime'].iloc[-1], freq = f'{interval_in_minutes}min')

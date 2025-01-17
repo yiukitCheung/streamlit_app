@@ -13,20 +13,30 @@ class StrategyEDA:
         self.start_date = start_date
         self.end_date = end_date
         self.instrument = instrument
-        
+    
+    def get_spy_return_data(self):
+        mongo_client = MongoClient(URL)
+        spy_data = pd.DataFrame(list(mongo_client[DB_NAME][WAREHOUSE_INTERVAL + '_data'].\
+            find({'symbol': '^GSPC',
+                    'date': {'$gte': self.start_date, '$lte': self.end_date},
+                    },
+                    {'date': 1, 'close': 1, '_id': 0})))
+        spy_data['return'] = spy_data['close'].pct_change()
+        spy_data.dropna(inplace=True)
+        spy_data['total_captial'] = 10000 * (1 + spy_data['return']).cumprod()
+        return spy_data
+    
     def get_nasdaq_return_data(self):
-            mongo_client = MongoClient(URL)
-            nasdaq_data = pd.DataFrame(list(mongo_client[DB_NAME][WAREHOUSE_INTERVAL + '_data'].\
-                find({'symbol': '^IXIC',
-                        'date': {'$gte': self.start_date, '$lte': self.end_date},
-                        },
-                        {'date': 1, 'close': 1, '_id': 0})))
-            nasdaq_data['return'] = nasdaq_data['close'].pct_change()
-            nasdaq_data.dropna(inplace=True)
-            
-            # Assuming 10000 initial capital
-            nasdaq_data['total_captial'] = 10000 * (1 + nasdaq_data['return']).cumprod()
-            return nasdaq_data
+        mongo_client = MongoClient(URL)
+        nasdaq_data = pd.DataFrame(list(mongo_client[DB_NAME][WAREHOUSE_INTERVAL + '_data'].\
+            find({'symbol': '^IXIC',
+                    'date': {'$gte': self.start_date, '$lte': self.end_date},
+                    },
+                    {'date': 1, 'close': 1, '_id': 0})))
+        nasdaq_data['return'] = nasdaq_data['close'].pct_change()
+        nasdaq_data.dropna(inplace=True)
+        nasdaq_data['total_captial'] = 10000 * (1 + nasdaq_data['return']).cumprod()
+        return nasdaq_data
         
     def get_bitcoin_return_data(self):
         mongo_client = MongoClient(URL)
@@ -72,6 +82,7 @@ class StrategyEDA:
         results_df_sorted['total_captial'] = results_df_sorted['total_captial'].interpolate()
         # Add Comparison Data
         if self.instrument == 'equity':
+            spy_data = self.get_spy_return_data()
             nasdaq_data = self.get_nasdaq_return_data()
         elif self.instrument == 'crypto':
             bitcoin_data = self.get_bitcoin_return_data()
@@ -135,16 +146,50 @@ class StrategyEDA:
             )
         elif self.instrument == 'equity':
             nasdaq_return = ((nasdaq_data['total_captial'].iloc[-1] / nasdaq_data['total_captial'].iloc[0]) - 1) * 100
+            spy_return = ((spy_data['total_captial'].iloc[-1] / spy_data['total_captial'].iloc[0]) - 1) * 100
+            
+            # Add NASDAQ line with annotation at end
             fig.add_trace(
-                go.Scatter(x=nasdaq_data.index, 
+                go.Scatter(x=pd.to_datetime(nasdaq_data['date']), 
                         y=nasdaq_data['total_captial'],
                         showlegend=False,
-                        line=dict(color='rgba(85, 85, 85, 0.5)', width=2)),
+                        line=dict(color='rgba(85, 85, 85, 0.5)', width=2),
+                        name='NASDAQ'),
                 row=1, col=1
             )
-            # Add cumulative return text with enhanced styling and comparison
-            outperformance = strategy_return - nasdaq_return
-            performance_color = '#2E8B57' if outperformance > 0 else '#DC143C'
+            # Add NASDAQ return annotation at end of line
+            fig.add_annotation(
+                x=pd.to_datetime(nasdaq_data['date'].iloc[-1]),
+                y=nasdaq_data['total_captial'].iloc[-1],
+                text=f'NASDAQ: {nasdaq_return:+.1f}%',
+                showarrow=False,
+                yshift=10,
+                font=dict(size=12)
+            )
+            
+            # Add SPY line with annotation at end
+            fig.add_trace(
+                go.Scatter(x=pd.to_datetime(spy_data['date']), 
+                        y=spy_data['total_captial'],
+                        showlegend=False,
+                        line=dict(color='rgba(85, 85, 85, 0.5)', width=2),
+                        name='SPY'),
+                row=1, col=1
+            )
+            # Add SPY return annotation at end of line
+            fig.add_annotation(
+                x=pd.to_datetime(spy_data['date'].iloc[-1]),
+                y=spy_data['total_captial'].iloc[-1], 
+                text=f'SPY: {spy_return:+.1f}%',
+                showarrow=False,
+                yshift=-10,
+                font=dict(size=12)
+            )
+
+            # Add performance comparison box
+            nasdaq_outperformance = strategy_return - nasdaq_return
+            spy_outperformance = strategy_return - spy_return
+            performance_color = '#2E8B57' if nasdaq_outperformance > 0 else '#DC143C'
             fig.add_annotation(
                 x=0.02,
                 y=0.98,
@@ -152,14 +197,14 @@ class StrategyEDA:
                 yref="paper",
                 text=f'<b> Stock Performance Analysis</b><br>' +
                     f'<span style="color:{performance_color}">CondVest: <b>{strategy_return:+.1f}%</b></span><br>' +
-                    f'NASDAQ: {nasdaq_return:+.1f}%<br>' +
-                    f'<span style="color:{performance_color}">Outperformance: <b>{outperformance:+.1f}%</b></span>',
+                    f'<span style="color:{performance_color}">Beat NASDAQ: <b>{nasdaq_outperformance:+.1f}%</b></span><br>' +
+                    f'<span style="color:{performance_color}">Beat SPY: <b>{spy_outperformance:+.1f}%</b></span>',
                 showarrow=False,
                 align="left",
-                font=dict(size=18)
-                
+                font=dict(size=16)
             )
 
+            
         # Update layout with log y-axis and prominent axes
         fig.update_layout(
             height=650,
