@@ -374,6 +374,26 @@ def search_stock(symbol: str):
         st.error(f"Error searching stock: {e}")
         return None
     
+def check_with_database(symbol: str):
+    try:
+        symbol = symbol.lower()
+        conn = psycopg2.connect(database=dbname, password=key, user=user, host=host, port=port)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT symbol FROM public.stock WHERE LOWER(name) LIKE %s",
+            (f"%{symbol}%",)
+        )
+        result = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        if result:
+            return result[0][0]
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Error checking with database: {e}")
+        return None
+    
 def add_stock_to_database(symbol: str, full_name: str):
     try:
         symbol = symbol.upper()

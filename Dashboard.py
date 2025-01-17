@@ -7,7 +7,7 @@ import numpy as np
 import redis, io, time
 from datetime import datetime
 from long_term import long_term_dashboard
-from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo, check_crypto_exists, add_crypto_to_database
+from dependencies import search_stock, add_stock_to_database, check_symbol_yahoo, check_crypto_exists, add_crypto_to_database, check_with_database
 # Ensure the correct path to the 'data' directory
 from analyzer import ExpectedReturnRiskAnalyzer
 from add_portfolio import existing_portfolio
@@ -221,7 +221,20 @@ def fetch_alert_data(instrument, symbol):
     except Exception as e:
         st.error(f"System Error, Please wait...: {str(e)}")
         return pd.DataFrame()
+
     
+def fetch_alert_data_last_3_candles(symbol: str):
+    current_date = get_most_current_trading_date()
+    try:
+        collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
+        query = {"symbol": symbol, "date": {"$gte": pd.to_datetime(current_date) - pd.Timedelta(days=3)}}
+        cursor = collection_obj.find(query)
+        return list(cursor)
+    except Exception as e:
+        st.error(f"System Error, Please wait...: {str(e)}")
+        return []
+
+
 def fetch_return_data(instrument):
     if not WAREHOUSE_INTERVAL:
         raise ValueError("warehouse_interval is empty in st.secrets")
@@ -1251,11 +1264,20 @@ def ai_section():
         try:
             # Show analysis in progress
             with st.spinner(_("Analyzing...")):
+                
+                # Fetch symbol alerts if any
+                symbol_alerts = None
+                prompt_msg = prompt.split(" ")            
+                for word in prompt_msg[2:]:
+                    symbol = check_with_database(word)
+                    if symbol != None:
+                        symbol_alerts = fetch_alert_data_last_3_candles(symbol) # json file of symbols
+                        
                 response = ai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": st.session_state.messages[0]["content"]},
-                        {"role": "user", "content": prompt}
+                        {"role": "user", "content": prompt + f'{symbol_alerts}'}
                     ],
                     temperature=0.5,
                     max_tokens=4096,

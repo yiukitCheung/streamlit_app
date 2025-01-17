@@ -75,17 +75,6 @@ def fetch_sandbox_records():
     except Exception as e:
         st.error(f"Error fetching sandbox records: {e}")
         return []
-    
-def fetch_alert_data_last_3_candles():
-    current_date = get_most_current_trading_date()
-    try:
-        collection_obj = initialize_mongo_client()[DB_NAME][PROCESSED_COLLECTION]
-        query = {"date": {"$gte": pd.to_datetime(current_date) - pd.Timedelta(days=3)}}
-        cursor = collection_obj.find(query)
-        return list(cursor)
-    except Exception as e:
-        st.error(f"System Error, Please wait...: {str(e)}")
-        return []
 
 # Initialize session state
 if 'current_page' not in st.session_state:
