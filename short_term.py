@@ -420,7 +420,7 @@ def alert_section(db, redis_client, symbol, interval):
         }
         
         .zone-header {
-            font-size: 20px;
+            font-size: 36px;
             font-weight: 700;
             margin-bottom: 20px;
             letter-spacing: 0.8px;
@@ -431,7 +431,7 @@ def alert_section(db, redis_client, symbol, interval):
         }
         
         .zone-value {
-            font-size: 17px;
+            font-size: 24px;
             color: var(--condvest-black);
             margin: 12px 0;
             padding: 10px 15px;
@@ -444,7 +444,7 @@ def alert_section(db, redis_client, symbol, interval):
         }
         
         .zone-change {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 600;
             margin-top: 15px;
             padding: 8px 15px;
@@ -604,6 +604,9 @@ def alert_section(db, redis_client, symbol, interval):
 
         if latest_vol_spike and latest_price:
             alert_price = latest_vol_spike.get('close')
+            alert_type = "Bullish" if latest_vol_spike.get('close') > latest_vol_spike.get('open') else "Bearish"
+            alert_color = "#2E8B57" if alert_type == "Bullish" else "#D64045"
+            
             if alert_price:
                 pct_change = ((latest_price - alert_price) / alert_price) * 100
                 color = "#2E8B57" if pct_change > 0 else "#D64045"
@@ -611,6 +614,7 @@ def alert_section(db, redis_client, symbol, interval):
                 arrow_color = "var(--condvest-black)" if pct_change > 0 else "var(--condvest-white)"
                 st.markdown(f"""
                     <div class="zone-value">Alert Price: {alert_price:.2f}</div>
+                    <div class="zone-value" style="color: {alert_color}">Type: {alert_type}</div>
                     <div class="zone-change" style="color: {color}; background: {'rgba(46, 139, 87, 0.3)' if pct_change > 0 else 'rgba(214, 64, 69, 0.3)'}">
                         <span class="direction-arrow">{arrow}</span>{abs(pct_change):.1f}% since alert
                     </div>

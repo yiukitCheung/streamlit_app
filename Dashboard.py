@@ -270,11 +270,12 @@ def compute_metrics(filtered_trades):
 
     return [win_trades, loss_trades, final_trade_profit_rate]
 
-def find_alert_symbols(data_dict: list, alert_type: str):
+def find_alert_symbols(data_dict: list, alert_type: list):
     results_set = set()
     for entry in data_dict:
-        if alert_type in entry and entry[alert_type]:
-            results_set.update(entry[alert_type])  # Add all symbols in the array to the set
+        for alert in alert_type:
+            if alert in entry and entry[alert]:
+                results_set.update(entry[alert])  # Add all symbols in the array to the set
     return list(results_set)
 
 @st.cache_data
@@ -1003,8 +1004,8 @@ def stock_pick_section(cur_alert_dict):
                 st.markdown('</div>', unsafe_allow_html=True)
 
         acc_alert_col, main_alert_col = st.columns(2)
-        acc_alert_symbols = find_alert_symbols(cur_alert_dict, 'ext_long_accelerating')
-        main_alert_symbols = find_alert_symbols(cur_alert_dict, 'ext_accumulating')
+        acc_alert_symbols = find_alert_symbols(cur_alert_dict, ['accelerating', 'velocity_maintained'])
+        main_alert_symbols = find_alert_symbols(cur_alert_dict, ['long_accumulating'])
         with acc_alert_col:
             display_alert_section(_("💰 Buy!"), acc_alert_symbols, "#4CAF50")
         with main_alert_col:
