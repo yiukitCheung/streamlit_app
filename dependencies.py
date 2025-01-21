@@ -56,7 +56,6 @@ def get_country_codes():
 # Function to validate phone numbers
 def validate_phone_number(phone, country_code):
     try:
-        
         # Extract the country code (e.g., +1)
         region_code = country_code.split(" ")[-1].strip("()").strip("+")
         # Add the country code to the phone number
@@ -610,7 +609,6 @@ def compute_price_change(latest_price, previous_price):
     if previous_price is None:
         return None
     return ((latest_price - previous_price) / previous_price) * 100
-
 
 def price_change_section(redis_client, stock_selector, processed_col):
     with st.container():

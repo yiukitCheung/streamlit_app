@@ -89,16 +89,16 @@ if "alert_symbols" not in st.session_state:
     st.session_state["alert_symbols"] = []
 if "messages" not in st.session_state:
     st.session_state["messages"] = messages
-        
 if "language" not in st.session_state:
     st.session_state["language"] = "en"
 
 def logout():
+    
     for key in ['logged_in', 'username', 'role', 'current_page']:
         st.session_state.pop(key, None)
     st.success("Logged out successfully!")
     st.session_state['current_page'] = "Login"
-
+    
 def main():
     # Set up Page Config only once
     st.set_page_config(layout="wide")
@@ -120,7 +120,7 @@ def main():
 
     # Set the default translation
     set_translation(lang)
-
+    
     # Language Selector
     st.sidebar.image("logo.png", use_column_width="auto")
     st.sidebar.markdown("<div style='text-align: center;'></div>", unsafe_allow_html=True)
@@ -196,43 +196,84 @@ def main():
                 .marquee-container {
                     overflow: hidden;
                     white-space: nowrap;
-                    background-color: #f0f8ff;
-                    padding: 10px;
+                    background-color: var(--condvest-beige);
+                    border: 2px solid var(--condvest-gold);
+                    padding: 15px 25px;
                     border-radius: 30px;
                     width: 100%;
                     box-sizing: border-box;
+                    box-shadow: 0 4px 12px rgba(198, 169, 108, 0.15);
+                    margin: 20px 0;
                 }
 
                 /* Text styling and animation */
                 .marquee {
                     display: inline-block;
-                    padding-left: 100%; /* Start outside view */
-                    font-size: 18px;
-                    font-weight: bold;
-                    animation: scroll 60s linear infinite; 
+                    padding-left: 100%;
+                    font-size: 16px;
+                    font-weight: 500;
+                    letter-spacing: 0.3px;
+                    animation: scroll 40s linear infinite;
+                    color: var(--condvest-black);
+                }
+
+                /* Profit/Loss styling */
+                .profit {
+                    color: #2E8B57;
+                    font-weight: 600;
+                    padding: 4px 8px;
+                    border-radius: 15px;
+                    background: rgba(46, 139, 87, 0.1);
+                }
+
+                .loss {
+                    color: #D64045;
+                    font-weight: 600;
+                    padding: 4px 8px;
+                    border-radius: 15px;
+                    background: rgba(214, 64, 69, 0.1);
+                }
+
+                .alert-item {
+                    margin: 0 15px;
+                    padding: 5px 10px;
+                    border-radius: 20px;
+                    display: inline-block;
+                    border: 1px solid var(--condvest-gold);
+                    background: rgba(255, 255, 255, 0.5);
                 }
 
                 /* Define the scrolling animation */
                 @keyframes scroll {
-                    100% { transform: translateX(15%); } /* Start closer */
-                    100% { transform: translateX(-100%); }
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-200%); }
                 }
                 </style>
             """, unsafe_allow_html=True)
-            # Create scrolling text with conditional colors for profit/loss
-            scrolling_text = " | ".join(
-                f"<span style='color: {'#4CAF50' if float(item['profit/loss'].split('%')[0]) > 0 else '#FF5733'}'>"
-                f"🚀 {item['symbol']}: Entry {item['Entry_date'].strftime('%Y-%m-%d')} | Exit {item['Exit_date'].strftime('%Y-%m-%d')} | "
-                f"Profit/Loss: {float(item['profit/loss'].split('%')[0])/100:.2f}%"
-                f"</span>"
-                for item in sand_box_results if ('Entry_date' in item) and ('Exit_date' in item) and (float(item['profit/loss%'].split('%')[0]) > 10) and (item['instrument'] == 'equity')
+
+            # Create scrolling text with enhanced styling
+            scrolling_text = " ".join(
+                f"<span class='alert-item'>"
+                f"🎯 {item['symbol']} | {item['Entry_date'].strftime('%Y-%m-%d')} ➜ {item['Exit_date'].strftime('%Y-%m-%d')} | "
+                f"<span class='{'profit' if float(item['profit/loss'].split('%')[0]) > 0 else 'loss'}'>"
+                f"{'▲' if float(item['profit/loss'].split('%')[0]) > 0 else '▼'} "
+                f"{abs(float(item['profit/loss'].split('%')[0])/100):.1f}%"
+                f"</span></span>"
+                for item in sand_box_results 
+                if ('Entry_date' in item) and ('Exit_date' in item) 
+                and (float(item['profit/loss%'].split('%')[0]) > 10) 
+                and (item['instrument'] == 'equity')
             )
-            # Display scrolling marquee in Streamlit
+
+            # Display scrolling marquee with enhanced header
             st.markdown(
                 f"""
                 <div class="marquee-container">
                     <span class="marquee">
-                        {_("CondVest Backtest Results from 2024:")} {scrolling_text}
+                        <span style="color: var(--condvest-gold); font-weight: 600; margin-right: 20px;">
+                            📊 {_("CondVest Performance Highlights")}:
+                        </span>
+                        {scrolling_text}
                     </span>
                 </div>
                 """,
@@ -331,7 +372,6 @@ def main():
                 # Get the start and end date of the backtest results
                 import pandas as pd
                 st.plotly_chart(StrategyEDA(start_date = pd.to_datetime("2020-01-01"), end_date = pd.to_datetime("today"), instrument="equity").plot_trading_analysis(sand_box_results), use_container_width=True)       
-                
                 st.markdown("<br><br>", unsafe_allow_html=True)
             
             intro_col, mission_col, principle_col = st.columns([1, 1, 1])
@@ -366,7 +406,7 @@ def main():
                     _("Our Mission"),
                     _("Clarity Over Complexity"), _("We turn intricate market data into clear, valuable insights, empowering investors to act with confidence."),
                     _("Responsible Investing"), _("At CondVest, we prioritize helping investors build structured, low-risk trading practices, cultivating disciplined investing habits."),
-                    _("Investor-Centric Approach"), _("Unlike other platforms, our goal is to support your success. We’re here to help you manage your portfolio, not just presenting information.")
+                    _("Investor-Centric Approach"), _("Unlike other platforms, our goal is to support your success. We're here to help you manage your portfolio, not just presenting information.")
                 ), unsafe_allow_html=True)
 
             with principle_col:

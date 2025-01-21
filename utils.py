@@ -9,6 +9,7 @@ DB_NAME = st.secrets['mongo']['db_name']
 WAREHOUSE_INTERVAL = st.secrets['mongo']['warehouse_interval']
 # Plot return chart
 class StrategyEDA:
+    
     def __init__(self, start_date, end_date, instrument="equity"):
         self.start_date = start_date
         self.end_date = end_date
@@ -56,6 +57,7 @@ class StrategyEDA:
         # Convert profit/loss from string to float
         results_df = pd.DataFrame(results_df)
         results_df = results_df[results_df['instrument'] == self.instrument]
+        
         # Convert profit/loss to floattotal_captial
         results_df['profit_loss_float'] = results_df['profit/loss%'].str.rstrip('%').astype(float) / 100
         results_df['good_trade'] = results_df['profit_loss_float'] > 0.1

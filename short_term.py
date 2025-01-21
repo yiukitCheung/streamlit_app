@@ -8,7 +8,7 @@ import gettext
 import os
 import io
 import redis
-
+import numpy as np
 # MongoDB Configuration
 DB_NAME = st.secrets['mongo']['db_name']
 PROCESSED_COLLECTION_NAME = st.secrets['mongo']['processed_collection_name']
@@ -112,7 +112,7 @@ def fetch_stock_data(redis_client, collection, stock_symbol, interval):
         st.error(f"Error fetching data: {str(e)}")
         return pd.DataFrame()  # Return empty DataFrame on error
 
-def fetch_latest_stock_data(redis_client, symbol):
+def fetch_latest_stock_data(redis_client, symbol, interval, db):
     """
     Fetches the latest stock data from Redis cache for a given symbol.
     """
@@ -122,7 +122,12 @@ def fetch_latest_stock_data(redis_client, symbol):
         if cached_data:
             decoded_data = {key.decode(): float(value.decode()) for key, value in cached_data.items()}
             return decoded_data
-        return None
+        else:
+            # Use MongoDB to fetch the latest data
+            query = {"symbol": symbol}
+            price = db[STREAMING_COLLECTIONS[0]].find_one(query, sort=[("datetime", -1)])
+            return price
+        
     except Exception as e:
         st.warning(f"Error fetching latest data for {symbol}: {str(e)}")
         return None
@@ -146,15 +151,17 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
                             ))
     
     # Add support and resistance areas to the candlestick chart
+    
     if len(support_resistance_alert_df) > 0:
         # Get the latest support and resistance values
-        latest_sr = support_resistance_alert_df.sort_values('datetime').iloc[-1]
+        latest_ressistance = support_resistance_alert_df[pd.notna(support_resistance_alert_df['resistance_upper'])].sort_values('datetime', ascending=False).iloc[0][['resistance_upper', 'resistance_lower']]
+        latest_support = support_resistance_alert_df[pd.notna(support_resistance_alert_df['support_upper'])].sort_values('datetime', ascending=False).iloc[0][['support_upper', 'support_lower']]
         
         # Plot latest support area if exists
-        if not pd.isna(latest_sr.get('support_upper')) and not pd.isna(latest_sr.get('support_lower')):
+        if not pd.isna(latest_support.get('support_upper')) and not pd.isna(latest_support.get('support_lower')):
             fig.add_trace(go.Scatter(
                 x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
-                y=[latest_sr['support_upper'], latest_sr['support_upper']],
+                y=[latest_support['support_upper'], latest_support['support_upper']],
                 fill=None,
                 mode='lines',
                 line=dict(color='rgba(0,0,255,0.3)', width=0),
@@ -162,7 +169,7 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
             ))
             fig.add_trace(go.Scatter(
                 x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
-                y=[latest_sr['support_lower'], latest_sr['support_lower']],
+                y=[latest_support['support_lower'], latest_support['support_lower']],
                 fill='tonexty',
                 mode='lines',
                 line=dict(color='rgba(0,0,255,0.3)', width=0),
@@ -171,10 +178,10 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
             ))
 
         # Plot latest resistance area if exists
-        if not pd.isna(latest_sr.get('resistance_upper')) and not pd.isna(latest_sr.get('resistance_lower')):
+        if not pd.isna(latest_ressistance.get('resistance_upper')) and not pd.isna(latest_ressistance.get('resistance_lower')):
             fig.add_trace(go.Scatter(
                 x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
-                y=[latest_sr['resistance_upper'], latest_sr['resistance_upper']],
+                y=[latest_ressistance['resistance_upper'], latest_ressistance['resistance_upper']],
                 fill=None,
                 mode='lines',
                 line=dict(color='rgba(255,0,0,0.3)', width=0),
@@ -182,7 +189,7 @@ def plot_candlestick_chart(filtered_df, support_resistance_alert_df, vol_spike_a
             ))
             fig.add_trace(go.Scatter(
                 x=[filtered_df['datetime'].min(), filtered_df['datetime'].max()],
-                y=[latest_sr['resistance_lower'], latest_sr['resistance_lower']],
+                y=[latest_ressistance['resistance_lower'], latest_ressistance['resistance_lower']],
                 fill='tonexty',
                 mode='lines',
                 line=dict(color='rgba(255,0,0,0.3)', width=0),
@@ -286,12 +293,12 @@ def chart_section(db, stock_selector, interval):
     st.plotly_chart(candlestick_chart, use_container_width=True, key=f"chart_{time.time()}")
     
 
-def price_change_section(redis_client, stock_selector, processed_col):
+def price_change_section(redis_client, stock_selector, processed_col, interval, db):
     # Fetch processed data
     processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
     
     # Get latest data
-    latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+    latest_data = fetch_latest_stock_data(redis_client, stock_selector, interval, db) 
     
     # Determine price change
     if latest_data:
@@ -326,13 +333,13 @@ def price_change_section(redis_client, stock_selector, processed_col):
         </div>
         """, unsafe_allow_html=True)
 
-def price_section(redis_client, stock_selector, processed_col):
+def price_section(redis_client, stock_selector, processed_col, interval, db):
 
     # Fetch processed data
     processed_df = fetch_stock_data(redis_client, processed_col, stock_selector, 1)
     
     # Get latest data
-    latest_data = fetch_latest_stock_data(redis_client, stock_selector) 
+    latest_data = fetch_latest_stock_data(redis_client, stock_selector, interval, db) 
     
 
     # Dynamically compute price change
@@ -389,6 +396,233 @@ def options_section(db):
     
     return stock_selector, intervals_selector
 
+def alert_section(db, redis_client, symbol, interval):
+    st.markdown("""
+        <style>
+        .alert-container {
+            background-color: var(--condvest-cream);
+            border: 2px solid var(--condvest-gold);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 4px 12px rgba(198, 169, 108, 0.15);
+            height: 100%;
+        }
+        
+        .zone-container {
+            background-color: var(--condvest-beige);
+            border: 1px solid var(--condvest-gold);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            height: calc(100% - 20px);
+        }
+        
+        .zone-header {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: 0.8px;
+            text-align: center;
+            border-bottom: 2px solid var(--condvest-gold);
+            padding-bottom: 12px;
+            text-transform: uppercase;
+        }
+        
+        .zone-value {
+            font-size: 17px;
+            color: var(--condvest-black);
+            margin: 12px 0;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            display: block;
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        .zone-change {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 15px;
+            padding: 8px 15px;
+            border-radius: 12px;
+            display: block;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        .direction-arrow {
+            font-size: 36px;
+            font-weight: 700;
+            margin-right: 5px;
+        }
+        
+        .volume-alert {
+            height: calc(100% - 20px);
+            padding: 15px;
+            background: var(--condvest-beige);
+            border: 1px solid var(--condvest-gold);
+            border-radius: 15px;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .alert-status {
+            color: var(--condvest-black);
+            text-align: center;
+            padding: 15px;
+            font-style: italic;
+            font-size: 16px;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            margin: 10px 0;
+            letter-spacing: 0.5px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Fetch data efficiently
+    try:
+        # Fetch latest volume spike alert
+        latest_vol_spike = db[VOLUME_SPIKE_BATCH_ALERT_COLLECTION].find_one(
+            {"symbol": symbol, "interval": interval},
+            sort=[("datetime", -1)]
+        )
+        
+        # Fetch latest structural alerts with specific fields
+        latest_resistance = db[SUP_RES_BATCH_ALERT_COLLECTION].find_one(
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "resistance_upper": {"$ne": np.nan}
+            },
+            sort=[("datetime", -1)]
+        )
+        
+        latest_support = db[SUP_RES_BATCH_ALERT_COLLECTION].find_one(
+            {
+                "symbol": symbol,
+                "interval": interval, 
+                "support_upper": {"$ne": np.nan}
+            },
+            sort=[("datetime", -1)]
+        )
+
+        # Get latest price
+        latest_data = fetch_latest_stock_data(redis_client, symbol, interval, db)
+        latest_price = latest_data.get('close') if latest_data else None
+        
+    except Exception as e:
+        st.error(f"Error fetching alerts: {e}")
+        return
+
+    # Create three columns for the alerts
+    col1, col2, col3 = st.columns(3)
+
+    # Resistance Zone Column
+    with col1:
+        st.markdown("""
+            <div class="zone-container">
+                <div class="zone-header" style="color: var(--condvest-gold);">
+                    RESISTANCE
+                </div>
+        """, unsafe_allow_html=True)
+
+        if latest_resistance and latest_resistance.get('resistance_upper') is not None:
+            res_high = latest_resistance.get('resistance_upper')
+            res_low = latest_resistance.get('resistance_lower')
+            
+            if latest_price and res_high and res_low:
+                is_above_resistance = latest_price > min(res_low, res_high)
+                resistance_pct = ((latest_price - ((res_high + res_low)/2)) / ((res_high + res_low)/2) * 100)
+                resistance_color = "#D64045" if is_above_resistance else "var(--condvest-black)"
+                resistance_arrow = "▲" if resistance_pct > 0 else "▼"
+                
+                st.markdown(f"""
+                    <div class="zone-value">Upper: {res_high:.2f}</div>
+                    <div class="zone-value">Lower: {res_low:.2f}</div>
+                    <div class="zone-change" style="color: {resistance_color}; background: rgba(214, 64, 69, 0.3);">
+                        <span class="direction-arrow">{resistance_arrow}</span>{abs(resistance_pct):.1f}% from zone
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div class="alert-status">
+                    No resistance zone detected
+                </div>
+            """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Support Zone Column
+    with col2:
+        st.markdown("""
+            <div class="zone-container">
+                <div class="zone-header" style="color: var(--condvest-gold);">
+                    SUPPORT
+                </div>
+        """, unsafe_allow_html=True)
+
+        if latest_support and latest_support.get('support_upper') is not None:
+            sup_high = latest_support.get('support_upper')
+            sup_low = latest_support.get('support_lower')
+            
+            if latest_price and sup_high and sup_low:
+                is_above_support = latest_price > min(sup_low, sup_high)
+                support_pct = ((latest_price - ((sup_high + sup_low)/2)) / ((sup_high + sup_low)/2) * 100)
+                support_color = "#2E8B57" if is_above_support else "var(--condvest-black)"
+                support_arrow = "▲" if support_pct > 0 else "▼"
+                
+                st.markdown(f"""
+                    <div class="zone-value">Upper: {sup_high:.2f}</div>
+                    <div class="zone-value">Lower: {sup_low:.2f}</div>
+                    <div class="zone-change" style="color: {support_color}; background: rgba(46, 139, 87, 0.3);">
+                        <span class="direction-arrow">{support_arrow}</span>{abs(support_pct):.1f}% from zone
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div class="alert-status">
+                    No support zone detected
+                </div>
+            """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Volume Spike Alert Column
+    with col3:
+        st.markdown("""
+            <div class="zone-container">
+                <div class="zone-header" style="color: var(--condvest-gold);">
+                    VOLUME ALERT
+                </div>
+        """, unsafe_allow_html=True)
+
+        if latest_vol_spike and latest_price:
+            alert_price = latest_vol_spike.get('close')
+            if alert_price:
+                pct_change = ((latest_price - alert_price) / alert_price) * 100
+                color = "#2E8B57" if pct_change > 0 else "#D64045"
+                arrow = "▲" if pct_change > 0 else "▼"
+                arrow_color = "var(--condvest-black)" if pct_change > 0 else "var(--condvest-white)"
+                st.markdown(f"""
+                    <div class="zone-value">Alert Price: {alert_price:.2f}</div>
+                    <div class="zone-change" style="color: {color}; background: {'rgba(46, 139, 87, 0.3)' if pct_change > 0 else 'rgba(214, 64, 69, 0.3)'}">
+                        <span class="direction-arrow">{arrow}</span>{abs(pct_change):.1f}% since alert
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div class="alert-status">
+                    No volume spike alerts
+                </div>
+            """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
 def short_term_dashboard():
     
     # Set up the gettext translation
@@ -429,12 +663,12 @@ def short_term_dashboard():
         with col1:  
             symbol_section(stock_selector)
         with col2:
-            price_section(redis_client, stock_selector, processed_col)
+            price_section(redis_client, stock_selector, processed_col, intervals_selector, db)
         with col3:
-            price_change_section(redis_client, stock_selector, processed_col)
+            price_change_section(redis_client, stock_selector, processed_col, intervals_selector, db)
 
         # Continuously update the chart every minute
         chart_section(db, stock_selector, intervals_selector)
         
-        
-            
+        # Show alerts
+        alert_section(db, redis_client, stock_selector, intervals_selector)
